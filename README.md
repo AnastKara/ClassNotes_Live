@@ -19,3 +19,4 @@ Students become read‑only when locked
 Lock state synced across all clients
 
 Teacher-only controls and permissions
+https://class-notes-live.vercel.app/
