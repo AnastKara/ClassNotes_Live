@@ -1,0 +1,55 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+/* Replaced unknown @theme at-rule with a scoped class to avoid unknown at-rule errors */
+.theme-inline {
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  --radius-sm: 2px;
+  --radius-md: 3px;
+  --radius-lg: 4px;
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-border: var(--border);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-danger: var(--danger);
+  --color-primary: var(--foreground);
+  --color-primary-foreground: var(--background);
+}
+
+:root {
+  --background: oklch(0.145 0 0);
+  --foreground: oklch(0.9 0 0);
+  --muted: oklch(0.2 0 0);
+  --muted-foreground: oklch(0.55 0 0);
+  --border: oklch(0.28 0 0);
+  --accent: oklch(0.72 0.05 145);
+  --accent-foreground: oklch(0.145 0 0);
+  --danger: oklch(0.65 0.16 25);
+}
+
+@layer base {
+  * {
+    border-color: var(--color-border);
+  }
+  html,
+  body {
+    background-color: var(--color-background);
+    color: var(--color-foreground);
+    font-family: var(--font-mono);
+    font-feature-settings: "ss01", "cv02";
+    -webkit-font-smoothing: antialiased;
+  }
+  ::selection {
+    background: var(--color-accent);
+    color: var(--color-accent-foreground);
+  }
+}
+
+@layer utilities {
+  .caret-accent {
+    caret-color: var(--color-accent);
+  }
+}
