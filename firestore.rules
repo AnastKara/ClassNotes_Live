@@ -1,0 +1,89 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Helper function to check if user is authenticated
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    // Helper function to check if user is admin
+    function isAdmin() {
+      return isAuthenticated() && 
+        (request.auth.token.role == "admin" || 
+         exists(/databases/$(database)/documents/users/$(request.auth.uid) && 
+         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == "admin");
+    }
+    
+    // Users collection - users can read/write their own data
+    match /users/{userId} {
+      allow read: if isAuthenticated() && request.auth.uid == userId;
+      allow create: if isAuthenticated() && request.auth.uid == userId;
+      allow update: if isAuthenticated() && request.auth.uid == userId;
+      allow delete: if false; // Users cannot be deleted via client
+    }
+    
+    // Rooms collection - readable by everyone, writable with auth
+    match /rooms/{roomId} {
+      allow read: if true; // Public read
+      allow update: if isAuthenticated();
+      allow create: if false; // Rooms are pre-created
+      allow delete: if false;
+    }
+    
+    // Flashcards collection - full CRUD for authenticated users
+    match /flashcards/{cardId} {
+      allow read: if true;
+      allow create, update, delete: if isAuthenticated();
+    }
+    
+    // Products collection (eBooks / prompts)
+    // Public can read published products, admins can create/update
+    match /products/{productId} {
+      allow read: if resource.data.published == true || isAdmin();
+      allow create, update, delete: if isAdmin();
+    }
+    
+    // Orders collection - private per user
+    match /orders/{orderId} {
+      allow read, create, update: if isAuthenticated() && 
+        (request.auth.uid == resource.data.user_id || isAdmin());
+      allow delete: if false; // Orders cannot be deleted
+    }
+    
+    // Payments collection - private per user, admin can read all
+    match /payments/{paymentId} {
+      allow read: if isAuthenticated() && 
+        (request.auth.uid == resource.data.user_id || isAdmin());
+      allow create: if isAuthenticated() && request.auth.uid == request.resource.data.user_id;
+      allow update, delete: if false; // Payments are immutable
+    }
+  }
+}
+
+// Firebase Storage rules
+service firebase.storage {
+  match /b/{bucket}/o {
+    // Public files (avatars, previews)
+    match /public/{allPaths=**} {
+      allow read: if true;
+      allow write: if false;
+    }
+    
+    // Product files - only accessible to purchasers or admins
+    match /products/{productId}/{allPaths=**} {
+      allow read: if request.auth != null && (
+        // Check if user has purchased this product
+        exists(/databases/$(database)/documents/orders/$(request.auth.uid + '_' + productId)) ||
+        // Or user is admin
+        (request.auth.token.role == "admin")
+      );
+      allow write: if request.auth != null && request.auth.token.role == "admin";
+    }
+    
+    // User files (private uploads)
+    match /users/{userId}/{allPaths=**} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+  }
+}

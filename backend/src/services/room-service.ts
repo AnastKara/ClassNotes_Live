@@ -1,45 +1,57 @@
 import { HttpError } from "../server/errors.js";
-import { supabaseAdmin } from "./supabase-admin";
+import { getFirestoreAdmin } from "./firebase-admin.js";
 
+const ROOMS_COLLECTION = "rooms";
 
 export class RoomService {
-  private admin() {
-    return supabaseAdmin();
+  private db() {
+    return getFirestoreAdmin();
   }
 
   async listRooms() {
-    const { data, error } = await this.admin()
-      .from("rooms")
-      .select("id,name,content,locked,updated_at");
-    if (error) throw new HttpError(500, "Failed to load rooms");
-    return data ?? [];
+    const snapshot = await this.db().collection(ROOMS_COLLECTION).get();
+    return snapshot.docs.map((doc) => ({
+      id: doc.id,
+      ...doc.data(),
+    }));
   }
 
   async updateRoomContent(roomId: string, content: string) {
-    const { data, error } = await this.admin()
-      .from("rooms")
-      .update({ content, updated_at: new Date().toISOString() })
-      .eq("id", roomId)
-      .select("id,name,content,locked,updated_at")
-      .single();
+    const roomRef = this.db().collection(ROOMS_COLLECTION).doc(roomId);
+    const doc = await roomRef.get();
+    
+    if (!doc.exists) {
+      throw new HttpError(404, "Room not found");
+    }
 
-    if (error || !data) throw new HttpError(500, "Failed to update room");
-    return data;
+    await roomRef.update({
+      content,
+      updated_at: new Date().toISOString(),
+    });
+
+    const updated = await roomRef.get();
+    return {
+      id: updated.id,
+      ...updated.data(),
+    };
   }
 
   async setRoomLock(roomId: string, locked: boolean, _userId: string) {
     // Teacher-only enforcement requires teacher role mapping.
     // For production, implement proper role lookup.
-    const { data, error } = await this.admin()
-      .from("rooms")
-      .update({ locked })
-      .eq("id", roomId)
-      .select("id,name,content,locked,updated_at")
-      .single();
+    const roomRef = this.db().collection(ROOMS_COLLECTION).doc(roomId);
+    const doc = await roomRef.get();
+    
+    if (!doc.exists) {
+      throw new HttpError(404, "Room not found");
+    }
 
-    if (error || !data) throw new HttpError(500, "Failed to update lock");
-    return data;
+    await roomRef.update({ locked });
+
+    const updated = await roomRef.get();
+    return {
+      id: updated.id,
+      ...updated.data(),
+    };
   }
 }
-
-

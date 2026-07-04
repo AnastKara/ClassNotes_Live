@@ -1,36 +1,41 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useRef, useState, useCallback } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { collection, query, where, orderBy, onSnapshot, doc, updateDoc, deleteDoc, addDoc } from "firebase/firestore";
+import { db, auth } from "@/integrations/firebase/client";
+import { onAuthStateChanged, signInAnonymously } from "firebase/auth";
 
 export const Route = createFileRoute("/")({
   component: ClassNotes,
   ssr: false,
 });
 
-type Room = {
+interface Room {
   id: string;
   name: string;
   content: string;
   locked: boolean;
-};
+}
 
 const SUBJECTS = ["math", "physics", "chemistry", "history"] as const;
 type Role = "student" | "teacher";
 type View = "notes" | "cards";
-type Flashcard = {
+
+interface Flashcard {
   id: string;
   room_id: string;
   front: string;
   back: string;
   created_at: string;
-};
+}
 
-function ClassNotes() {
+type InitStatus = "connecting" | "live" | "offline";
+
+function ClassNotes(): JSX.Element {
   const [role, setRole] = useState<Role>("student");
   const [activeId, setActiveId] = useState<string>("math");
   const [view, setView] = useState<View>("notes");
   const [rooms, setRooms] = useState<Record<string, Room>>({});
-  const [status, setStatus] = useState<"connecting" | "live" | "offline">("connecting");
+  const [status, setStatus] = useState<InitStatus>("connecting");
   const [initError, setInitError] = useState<string | null>(null);
 
   const [peers, setPeers] = useState(1);
@@ -48,11 +53,11 @@ function ClassNotes() {
     if (r === "teacher" || r === "student") setRole(r);
   }, []);
 
-  // Supabase env validation: prevent blank screen when env vars are missing
+  // Firebase env validation: prevent blank screen when env vars are missing
   useEffect(() => {
     try {
-      // accessing supabase triggers env-var validation in src/integrating-base/client.ts
-      void supabase;
+      // accessing db triggers env-var validation in src/integrations/firebase/client.ts
+      void db;
     } catch (e) {
       setInitError(e instanceof Error ? e.message : String(e));
     }
@@ -62,53 +67,43 @@ function ClassNotes() {
     localStorage.setItem("cn.role", role);
   }, [role]);
 
-  // initial fetch
+  // Anonymous authentication for presence tracking
   useEffect(() => {
-    let alive = true;
-    (async () => {
-      const { data, error } = await supabase.from("rooms").select("*");
-      if (!alive) return;
-      if (error || !data) {
-        setStatus("offline");
-        return;
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      if (!user) {
+        // Sign in anonymously for presence tracking
+        try {
+          await signInAnonymously(auth);
+        } catch (e) {
+          console.error("Failed to sign in anonymously:", e);
+        }
       }
-      const map: Record<string, Room> = {};
-      for (const r of data) map[r.id] = r as Room;
-      setRooms(map);
-      setStatus("live");
-    })();
-    return () => {
-      alive = false;
-    };
+    });
+    return () => unsubscribe();
   }, []);
 
-  // realtime subscription
+  // initial fetch + realtime subscription for rooms
   useEffect(() => {
-    const channel = supabase
-      .channel("rooms-updates")
-      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "rooms" }, (payload) => {
-        const r = payload.new as Room;
-        setRooms((prev) => {
-          // ignore an echo of our own last write for that room
-          if (skipNextEcho.current[r.id] === r.content) {
-            delete skipNextEcho.current[r.id];
-            return { ...prev, [r.id]: { ...prev[r.id], ...r } };
-          }
-          return { ...prev, [r.id]: { ...prev[r.id], ...r } };
-        });
-      })
-      .on("presence", { event: "sync" }, () => {
-        const state = channel.presenceState();
-        setPeers(Math.max(1, Object.keys(state).length));
-      })
-      .subscribe(async (s) => {
-        if (s === "SUBSCRIBED") {
-          await channel.track({ at: Date.now() });
-        }
+    let alive = true;
+    
+    const roomsRef = collection(db, "rooms");
+    const unsubscribe = onSnapshot(roomsRef, (snapshot) => {
+      if (!alive) return;
+      const map: Record<string, Room> = {};
+      snapshot.forEach((doc) => {
+        const data = doc.data() as Room;
+        map[doc.id] = { ...data, id: doc.id };
       });
+      setRooms(map);
+      setStatus("live");
+    }, (error) => {
+      console.error("Rooms subscription error:", error);
+      setStatus("offline");
+    });
 
     return () => {
-      supabase.removeChannel(channel);
+      alive = false;
+      unsubscribe();
     };
   }, []);
 
@@ -117,12 +112,16 @@ function ClassNotes() {
 
   const pushContent = useCallback(async (id: string, content: string) => {
     skipNextEcho.current[id] = content;
-    const { error } = await supabase
-      .from("rooms")
-      .update({ content, updated_at: new Date().toISOString() })
-      .eq("id", id);
-    if (error) setStatus("offline");
-    else setStatus("live");
+    try {
+      const roomRef = doc(db, "rooms", id);
+      await updateDoc(roomRef, { 
+        content, 
+        updated_at: new Date().toISOString() 
+      });
+      setStatus("live");
+    } catch (error) {
+      setStatus("offline");
+    }
   }, []);
 
   // throttled push
@@ -141,51 +140,37 @@ function ClassNotes() {
     if (role !== "teacher" || !active) return;
     const next = !active.locked;
     setRooms((prev) => ({ ...prev, [activeId]: { ...prev[activeId], locked: next } }));
-    await supabase.from("rooms").update({ locked: next }).eq("id", activeId);
+    try {
+      const roomRef = doc(db, "rooms", activeId);
+      await updateDoc(roomRef, { locked: next });
+    } catch (error) {
+      console.error("Failed to toggle lock:", error);
+    }
   };
 
   // fetch + subscribe flashcards for active room
   useEffect(() => {
     setCardIdx(0);
     setFlipped(false);
-    let alive = true;
-    (async () => {
-      const { data } = await supabase
-        .from("flashcards")
-        .select("*")
-        .eq("room_id", activeId)
-        .order("created_at", { ascending: true });
-      if (!alive || !data) return;
-      setCards(data as Flashcard[]);
-    })();
+    
+    const flashcardsRef = collection(db, "flashcards");
+    const q = query(
+      flashcardsRef,
+      where("room_id", "==", activeId),
+      orderBy("created_at", "asc")
+    );
+    
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const newCards = snapshot.docs.map((doc) => ({
+        id: doc.id,
+        ...doc.data(),
+      })) as Flashcard[];
+      setCards(newCards);
+    }, (error) => {
+      console.error("Flashcards subscription error:", error);
+    });
 
-    const ch = supabase
-      .channel(`cards-${activeId}`)
-      .on(
-        "postgres_changes",
-        {
-          event: "INSERT",
-          schema: "public",
-          table: "flashcards",
-          filter: `room_id=eq.${activeId}`,
-        },
-        (payload) => setCards((prev) => [...prev, payload.new as Flashcard]),
-      )
-      .on(
-        "postgres_changes",
-        {
-          event: "DELETE",
-          schema: "public",
-          table: "flashcards",
-          filter: `room_id=eq.${activeId}`,
-        },
-        (payload) => setCards((prev) => prev.filter((c) => c.id !== (payload.old as Flashcard).id)),
-      )
-      .subscribe();
-    return () => {
-      alive = false;
-      supabase.removeChannel(ch);
-    };
+    return () => unsubscribe();
   }, [activeId]);
 
   const addCard = async () => {
@@ -194,11 +179,26 @@ function ClassNotes() {
     if (!front || !back) return;
     setNewFront("");
     setNewBack("");
-    await supabase.from("flashcards").insert({ room_id: activeId, front, back });
+    try {
+      const flashcardsRef = collection(db, "flashcards");
+      await addDoc(flashcardsRef, {
+        room_id: activeId,
+        front,
+        back,
+        created_at: new Date().toISOString(),
+      });
+    } catch (error) {
+      console.error("Failed to add card:", error);
+    }
   };
 
   const deleteCard = async (id: string) => {
-    await supabase.from("flashcards").delete().eq("id", id);
+    try {
+      const cardRef = doc(db, "flashcards", id);
+      await deleteDoc(cardRef);
+    } catch (error) {
+      console.error("Failed to delete card:", error);
+    }
   };
 
   const wordCount = active ? active.content.trim().split(/\s+/).filter(Boolean).length : 0;
@@ -210,7 +210,7 @@ function ClassNotes() {
       {initError && (
         <div className="p-6">
           <div className="max-w-xl border border-border rounded-md p-4">
-            <div className="text-lg font-semibold">Supabase is not configured</div>
+            <div className="text-lg font-semibold">Firebase is not configured</div>
             <div className="mt-2 text-sm text-muted-foreground whitespace-pre-wrap">
               {initError}
             </div>
