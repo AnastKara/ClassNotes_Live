@@ -108,7 +108,9 @@ function ClassNotes() {
   }, []);
 
   const active = rooms[activeId];
-  const canEdit = role === "teacher" || (active && !active.locked);
+  const roomLocked = !!active?.locked;
+  const canEdit = role === "teacher" || !roomLocked;
+
 
   const pushContent = useCallback(async (id: string, content: string) => {
     skipNextEcho.current[id] = content;
@@ -328,10 +330,11 @@ function ClassNotes() {
                   ref={textareaRef}
                   value={active?.content ?? ""}
                   onChange={onChange}
-                  disabled={!canEdit || !active}
+                  disabled={!canEdit}
                   spellCheck={false}
-                  placeholder={active ? "// start typing. everyone here sees it." : "// loading…"}
+                  placeholder="// start typing. everyone here sees it."
                   className="absolute inset-0 w-full h-full resize-none bg-background text-foreground caret-accent p-4 pl-14 outline-none text-sm leading-6 font-mono disabled:text-muted-foreground disabled:cursor-not-allowed"
+
                 />
                 <div
                   aria-hidden

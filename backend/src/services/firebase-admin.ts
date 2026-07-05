@@ -1,11 +1,14 @@
 // Firebase Admin SDK - server-side only
 // This file should NEVER be imported in client code
 
-import { initializeApp, apps, auth, firestore, credential } from "firebase-admin";
+import admin from "firebase-admin";
 import { App } from "firebase-admin/app";
 
 function formatPrivateKey(key: string): string {
-  return key.replace(/\\n/g, "\n");
+  // The key from .env has \n as literal characters, need to convert to actual newlines
+  // Also handle if it's wrapped in quotes
+  const unquoted = key.replace(/^"|"$/g, "");
+  return unquoted.replace(/\\n/g, "\n");
 }
 
 function requireEnv(name: string): string {
@@ -24,8 +27,8 @@ export function getFirebaseAdminApp(): App {
   const privateKey = formatPrivateKey(requireEnv("FIREBASE_PRIVATE_KEY"));
 
   // Ensure we don't re-initialize in dev/hot reload.
-  _app = apps.length ? apps[0]! : initializeApp({
-    credential: credential.cert({
+  _app = admin.apps.length ? admin.apps[0]! : admin.initializeApp({
+    credential: admin.credential.cert({
       projectId,
       clientEmail,
       privateKey,
@@ -36,9 +39,9 @@ export function getFirebaseAdminApp(): App {
 }
 
 export function getFirebaseAuthAdmin() {
-  return auth(getFirebaseAdminApp());
+  return admin.auth(getFirebaseAdminApp());
 }
 
 export function getFirestoreAdmin() {
-  return firestore(getFirebaseAdminApp());
+  return admin.firestore(getFirebaseAdminApp());
 }

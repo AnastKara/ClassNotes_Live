@@ -1,10 +1,13 @@
-import dotenv from "dotenv";
-dotenv.config();
+import { initializeApp } from "firebase-admin/app";
+import { getFirestore } from "firebase-admin/firestore";
 
-import { getFirestoreAdmin } from "./services/firebase-admin.js";
+// Use GOOGLE_APPLICATION_CREDENTIALS environment variable
+// Set it before running: set GOOGLE_APPLICATION_CREDENTIALS=path/to/service-account.json
+initializeApp();
+
+const db = getFirestore();
 
 async function seedRooms() {
-  const db = getFirestoreAdmin();
   const rooms = [
     { id: "math", name: "math", content: "", locked: false },
     { id: "physics", name: "physics", content: "", locked: false },
@@ -30,15 +33,12 @@ async function seedRooms() {
   }
 }
 
-async function main() {
-  try {
-    await seedRooms();
+seedRooms()
+  .then(() => {
     console.log("Seed completed successfully!");
     process.exit(0);
-  } catch (error) {
+  })
+  .catch((error) => {
     console.error("Seed failed:", error);
     process.exit(1);
-  }
-}
-
-main();
+  });
