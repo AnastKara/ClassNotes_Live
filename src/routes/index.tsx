@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useRef, useState, useCallback } from "react";
-import { collection, query, where, orderBy, onSnapshot, doc, updateDoc, deleteDoc, addDoc } from "firebase/firestore";
+import { collection, query, where, orderBy, onSnapshot, doc, updateDoc, deleteDoc, addDoc, getDoc, setDoc } from "firebase/firestore";
 import { db, auth } from "@/integrations/firebase/client";
 import { onAuthStateChanged, signInAnonymously } from "firebase/auth";
 
@@ -17,6 +17,7 @@ interface Room {
 }
 
 const SUBJECTS = ["math", "physics", "chemistry", "history"] as const;
+const SUBJECTS_ADD_BUTTON_LABEL = "+";
 type Role = "student" | "teacher";
 type View = "notes" | "cards";
 
@@ -251,6 +252,42 @@ function ClassNotes() {
             subjects
           </div>
           <ul className="flex flex-col gap-0.5">
+            <li>
+              <button
+                onClick={async () => {
+                  const id = window.prompt("New subject id (used as room id):", "new-subject");
+                  if (!id) return;
+                  const roomId = id.trim();
+                  if (!roomId) return;
+
+                  try {
+                    const roomRef = doc(db, "rooms", roomId);
+
+                    // Optimistically create/overwrite the room.
+                    // This avoids a separate getDoc() call (which can fail when Firestore client reports offline).
+                    await setDoc(roomRef, {
+                      name: roomId,
+                      content: rooms[roomId]?.content ?? "",
+                      locked: rooms[roomId]?.locked ?? false,
+                      updated_at: new Date().toISOString(),
+                    });
+
+                    setActiveId(roomId);
+                  } catch (e) {
+                    const msg = e instanceof Error ? e.message : String(e);
+                    console.error("Failed to add subject:", e);
+                    alert(`Failed to add subject: ${msg}`);
+                  }
+                }}
+                className="w-full text-left px-2 py-1 flex items-center justify-between group text-muted-foreground hover:text-foreground"
+                aria-label="Add subject"
+              >
+                <span className="flex items-center gap-2">
+                  <span className="text-accent">{SUBJECTS_ADD_BUTTON_LABEL}</span>
+                  <span className="text-[12px]">add subject</span>
+                </span>
+              </button>
+            </li>
             {SUBJECTS.map((id) => {
               const r = rooms[id];
               const isActive = id === activeId;
