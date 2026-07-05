@@ -30,7 +30,7 @@ interface Flashcard {
 
 type InitStatus = "connecting" | "live" | "offline";
 
-function ClassNotes(): JSX.Element {
+function ClassNotes() {
   const [role, setRole] = useState<Role>("student");
   const [activeId, setActiveId] = useState<string>("math");
   const [view, setView] = useState<View>("notes");

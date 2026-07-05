@@ -3,12 +3,25 @@ import { getFirestoreAdmin } from "./firebase-admin.js";
 
 const FLASHCARDS_COLLECTION = "flashcards";
 
+interface FlashcardBase {
+  room_id: string;
+  front: string;
+  back: string;
+  created_at: string;
+}
+
+export interface Flashcard extends FlashcardBase {
+  id: string;
+}
+
+interface FlashcardCreateData extends FlashcardBase {}
+
 export class FlashcardService {
-  private db() {
+  private db(): ReturnType<typeof getFirestoreAdmin> {
     return getFirestoreAdmin();
   }
 
-  async listFlashcards(roomId: string) {
+  async listFlashcards(roomId: string): Promise<Flashcard[]> {
     const snapshot = await this.db()
       .collection(FLASHCARDS_COLLECTION)
       .where("room_id", "==", roomId)
@@ -17,7 +30,7 @@ export class FlashcardService {
     
     return snapshot.docs.map((doc) => ({
       id: doc.id,
-      ...doc.data(),
+      ...(doc.data() as FlashcardCreateData),
     }));
   }
 

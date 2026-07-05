@@ -1,5 +1,6 @@
 import { HttpError } from "../server/errors.js";
 import { getFirestoreAdmin } from "./firebase-admin.js";
+import { Query } from "firebase-admin/firestore";
 
 const PRODUCTS_COLLECTION = "products";
 
@@ -9,7 +10,7 @@ export class ProductService {
   }
 
   async listProducts(publishedOnly = true) {
-    let query = this.db().collection(PRODUCTS_COLLECTION);
+    let query: Query = this.db().collection(PRODUCTS_COLLECTION);
     
     if (publishedOnly) {
       query = query.where("published", "==", true);

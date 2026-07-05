@@ -1,5 +1,5 @@
 // Firebase integration exports
-export { db, auth, storage, firebaseApp } from "./client";
+export { db, auth, storage, firebaseApp } from "./client.ts";
 export { attachFirebaseAuth } from "./auth-attacher";
 export type {
   User,

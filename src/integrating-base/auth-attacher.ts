@@ -1,8 +1,5 @@
-// Firebase auth middleware for TanStack Start
-// This middleware attaches Firebase auth token to requests
-
 import { createMiddleware } from "@tanstack/react-start";
-import { auth } from "./client.ts";
+import { auth } from "../integrations/firebase/client.ts";
 
 export const attachFirebaseAuth = createMiddleware({ type: "function" }).client(
   async ({ next }) => {
