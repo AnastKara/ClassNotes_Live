@@ -1,8 +1,8 @@
 import { initializeApp } from "firebase-admin/app";
 import { getFirestore } from "firebase-admin/firestore";
 
-// Use GOOGLE_APPLICATION_CREDENTIALS environment variable
-// Set it before running: set GOOGLE_APPLICATION_CREDENTIALS=path/to/service-account.json
+// Use GOOGLE_APPLICATION_CREDENTIALS enviroment variable
+// Set it before running: set GOOGLE_APPLICATION-CREDENTIALS=path/to/service-account.json
 initializeApp();
 
 const db = getFirestore();

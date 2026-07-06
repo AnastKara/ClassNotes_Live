@@ -3,6 +3,7 @@ import { useEffect, useRef, useState, useCallback } from "react";
 import { collection, query, where, orderBy, onSnapshot, doc, updateDoc, deleteDoc, addDoc, getDoc, setDoc } from "firebase/firestore";
 import { db, auth } from "@/integrations/firebase/client";
 import { onAuthStateChanged, signInAnonymously } from "firebase/auth";
+import { DrawingCanvas } from "@/components/drawing-canvas";
 
 export const Route = createFileRoute("/")({
   component: ClassNotes,
@@ -19,7 +20,7 @@ interface Room {
 const SUBJECTS = ["math", "physics", "chemistry", "history"] as const;
 const SUBJECTS_ADD_BUTTON_LABEL = "+";
 type Role = "student" | "teacher";
-type View = "notes" | "cards";
+type View = "notes" | "cards" | "draw";
 
 interface Flashcard {
   id: string;
@@ -340,6 +341,13 @@ function ClassNotes() {
                 >
                   cards ({cards.length})
                 </button>
+                <span className="mx-2">·</span>
+                <button
+                  onClick={() => setView("draw")}
+                  className={view === "draw" ? "text-foreground" : "hover:text-foreground"}
+                >
+                  draw
+                </button>
               </span>
               {view === "notes" && active?.locked && (
                 <span className="text-danger">— locked by teacher</span>
@@ -482,6 +490,9 @@ function ClassNotes() {
                 </div>
               </div>
             </div>
+          )}
+          {view === "draw" && (
+            <DrawingCanvas roomId={activeId} canEdit={canEdit} />
           )}
         </main>
       </div>

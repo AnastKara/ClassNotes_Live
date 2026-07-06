@@ -36,6 +36,18 @@ service cloud.firestore {
       allow read: if true;
       allow create, update, delete: if isAuthenticated();
     }
+
+    // Strokes collection - for drawing
+    match /strokes/{strokeId} {
+      allow read: if true;
+      allow create, update, delete: if isAuthenticated();
+    }
+
+    // Comments collection - for drawing comments
+    match /comments/{commentId} {
+      allow read: if true;
+      allow create, update, delete: if isAuthenticated();
+    }
     
     // Products collection (eBooks / prompts)
     // Public can read published products, admins can create/update
