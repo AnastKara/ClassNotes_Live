@@ -7,6 +7,40 @@
   </head>
   <body>
     <div id="root"></div>
+    <!-- Suppress Chrome extension errors (e.g., "No Listener: tabs:outgoing.message.ready") -->
+    <!-- These are typically from development tools like Lovable that inject code but don't have -->
+    <!-- proper background script listeners configured. -->
+    <script>
+      (function() {
+        const suppressError = (error) => {
+          const message = error?.toString() || "";
+          return message.includes("No Listener: tabs:outgoing.message.ready");
+        };
+
+        // Use capture phase to catch errors before they bubble
+        window.addEventListener("error", (event) => {
+          if (suppressError(event.message)) {
+            event.preventDefault();
+            event.stopPropagation();
+          }
+        }, true);
+
+        // Use capture phase to catch unhandled rejections before they bubble
+        window.addEventListener("unhandledrejection", (event) => {
+          if (suppressError(event.reason?.toString() || "")) {
+            event.preventDefault();
+          }
+        }, true);
+
+        // Also override console.error to suppress the error
+        const originalConsoleError = console.error;
+        console.error = function(...args) {
+          const message = args[0]?.toString() || "";
+          if (suppressError(message)) {
+            return;
+          }
+          return originalConsoleError.apply(console, args);
+        };
+      })();
+    </script>
     <script type="module" src="/src/start.ts"></script>
-  </body>
-</html>
