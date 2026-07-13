@@ -21,7 +21,7 @@
 
         // Use capture phase to catch errors before they bubble
         window.addEventListener("error", (event) => {
-          if (suppressError(event.message)) {
+          if (suppressError(event.message) || (event.error && suppressError(event.error.toString()))) {
             event.preventDefault();
             event.stopPropagation();
           }
@@ -45,3 +45,5 @@
         };
       })();
     </script>
+  </body>
+</html>
