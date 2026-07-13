@@ -24,22 +24,6 @@ type View = "notes" | "cards" | "draw";
 
 type CardsMode = "study" | "quiz";
 
-  const [cardsMode, setCardsMode] = useState<CardsMode>("study");
-  const [quizAnswer, setQuizAnswer] = useState("");
-  const [quizSubmitted, setQuizSubmitted] = useState(false);
-  const [quizCorrectCount, setQuizCorrectCount] = useState(0);
-  const [quizTotalCount, setQuizTotalCount] = useState(0);
-
-  const normalizeQuizAnswer = (s: string) =>
-    s.trim().toLowerCase().replace(/\s+/g, " ");
-
-  const isQuizCorrect = (expected: string, actual: string) => {
-    const e = normalizeQuizAnswer(expected);
-    const a = normalizeQuizAnswer(actual);
-    if (!a) return false;
-    return a === e;
-  };
-
 
 // Microsoft Notes-inspired colorful palette
 const SUBJECT_COLORS: Record<string, { bg: string; text: string }> = {
