@@ -1,5 +1,5 @@
 ClassNotes Live
-A real‑time collaborative classroom notes platform built with TanStack Start, Cloudflare Workers, and Lovable Cloud Realtime + Postgres.
+A real‑time collaborative classroom notes platform built with TanStack Start, Cloudflare Workers.
 
 ClassNotes Live enables students and teachers to collaborate on lesson notes in real time, organized by subject, with powerful classroom features such as teacher locking, flashcards, quizzes, and more.
 
