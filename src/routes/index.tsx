@@ -22,6 +22,25 @@ const SUBJECTS_ADD_BUTTON_LABEL = "+";
 type Role = "student" | "teacher";
 type View = "notes" | "cards" | "draw";
 
+type CardsMode = "study" | "quiz";
+
+  const [cardsMode, setCardsMode] = useState<CardsMode>("study");
+  const [quizAnswer, setQuizAnswer] = useState("");
+  const [quizSubmitted, setQuizSubmitted] = useState(false);
+  const [quizCorrectCount, setQuizCorrectCount] = useState(0);
+  const [quizTotalCount, setQuizTotalCount] = useState(0);
+
+  const normalizeQuizAnswer = (s: string) =>
+    s.trim().toLowerCase().replace(/\s+/g, " ");
+
+  const isQuizCorrect = (expected: string, actual: string) => {
+    const e = normalizeQuizAnswer(expected);
+    const a = normalizeQuizAnswer(actual);
+    if (!a) return false;
+    return a === e;
+  };
+
+
 // Microsoft Notes-inspired colorful palette
 const SUBJECT_COLORS: Record<string, { bg: string; text: string }> = {
   math: { bg: "oklch(0.65 0.15 250)", text: "oklch(0.65 0.15 250)" },
@@ -74,6 +93,25 @@ function ClassNotes() {
   const [cards, setCards] = useState<Flashcard[]>([]);
   const [cardIdx, setCardIdx] = useState(0);
   const [flipped, setFlipped] = useState(false);
+
+  // Quiz state (front=question, back=expected answer)
+  const [cardsMode, setCardsMode] = useState<CardsMode>("study");
+  const [quizAnswer, setQuizAnswer] = useState("");
+  const [quizSubmitted, setQuizSubmitted] = useState(false);
+  const [quizCorrect, setQuizCorrect] = useState(false);
+  const [quizCorrectCount, setQuizCorrectCount] = useState(0);
+  const [quizTotalCount, setQuizTotalCount] = useState(0);
+
+  const normalizeQuizAnswer = (s: string) =>
+    s.trim().toLowerCase().replace(/\s+/g, " ");
+
+  const isQuizCorrect = (expected: string, actual: string) => {
+    const e = normalizeQuizAnswer(expected);
+    const a = normalizeQuizAnswer(actual);
+    if (!a) return false;
+    return a === e;
+  };
+
   const [newFront, setNewFront] = useState("");
   const [newBack, setNewBack] = useState("");
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -477,9 +515,10 @@ function ClassNotes() {
                 )}
               </div>
 
-              {view === "notes" ? (
+      {view === "notes" ? (
                 <>
                   <div className="flex-1 min-h-0 relative">
+
                     <textarea
                       ref={textareaRef}
                       value={active?.content ?? ""}
@@ -517,11 +556,181 @@ function ClassNotes() {
                 </>
               ) : (
                 <div className="flex-1 min-h-0 flex flex-col">
-                  {/* study area */}
+                  {/* mode toggle */}
+                  <div className="px-4 pt-4">
+                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setCardsMode("study");
+                          setQuizAnswer("");
+                          setQuizSubmitted(false);
+                          setQuizCorrect(false);
+                        }}
+                        className={
+                          "border px-3 py-1 rounded transition-colors " +
+                          (cardsMode === "study"
+                            ? "border-accent/50 bg-accent/10 text-accent"
+                            : "border-border hover:bg-muted")
+                        }
+                        aria-pressed={cardsMode === "study"}
+                      >
+                        Study
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setCardsMode("quiz");
+                          setQuizAnswer("");
+                          setQuizSubmitted(false);
+                          setQuizCorrect(false);
+                        }}
+                        className={
+                          "border px-3 py-1 rounded transition-colors " +
+                          (cardsMode === "quiz"
+                            ? "border-accent/50 bg-accent/10 text-accent"
+                            : "border-border hover:bg-muted")
+                        }
+                        aria-pressed={cardsMode === "quiz"}
+                      >
+                        Quiz
+                      </button>
+
+                      {cardsMode === "quiz" && (
+                        <span className="ml-auto text-muted-foreground">
+                          Score: {quizCorrectCount}/{quizTotalCount}
+                        </span>
+                      )}
+
+                      {cardsMode === "quiz" && cards.length > 0 && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setQuizAnswer("");
+                            setQuizSubmitted(false);
+                            setQuizCorrect(false);
+                            setQuizCorrectCount(0);
+                            setQuizTotalCount(0);
+                            setCardIdx(0);
+                          }}
+                          className="border border-border px-3 py-1 hover:bg-muted rounded"
+                        >
+                          Restart
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* study/quiz area */}
                   <div className="flex-1 min-h-0 flex items-center justify-center p-6">
                     {cards.length === 0 ? (
                       <div className="text-sm text-muted-foreground">
-                        No cards yet. Add one below to start studying.
+                        No cards yet. Add one below to start.
+                      </div>
+                    ) : cardsMode === "quiz" ? (
+                      <div className="w-full max-w-xl flex flex-col items-center gap-4">
+                        <div className="text-xs text-muted-foreground" aria-live="polite">
+                          Question {cardIdx + 1} of {cards.length}
+                        </div>
+
+                        <div
+                          className="w-full min-h-[180px] border border-border p-6 rounded focus:outline-none"
+                          style={{ backgroundColor: cardColor }}
+                        >
+                          <div className="text-xs uppercase tracking-wider" style={{ color: cardTextColor }}>
+                            Question
+                          </div>
+                          <div className="text-lg leading-snug whitespace-pre-wrap mt-2">
+                            {currentCard.front}
+                          </div>
+
+                          <div className="mt-4">
+                            <label className="text-xs text-muted-foreground">Your answer</label>
+                            <input
+                              value={quizAnswer}
+                              onChange={(e) => setQuizAnswer(e.target.value)}
+                              disabled={quizSubmitted}
+                              placeholder="Type your answer"
+                              className="mt-1 w-full bg-background border border-border px-3 py-2 outline-none focus:border-accent focus:ring-2 focus:ring-accent/40 rounded text-sm"
+                            />
+
+                            <div className="mt-3 flex items-center gap-2">
+                              {!quizSubmitted ? (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    const expected = currentCard.back;
+                                    const actual = quizAnswer;
+                                    const correct = isQuizCorrect(expected, actual);
+                                    setQuizCorrect(correct);
+                                    setQuizSubmitted(true);
+
+                                    setQuizCorrectCount((c) => c + (correct ? 1 : 0));
+                                    setQuizTotalCount((t) => t + 1);
+                                  }}
+                                  disabled={!quizAnswer.trim()}
+                                  className="border px-3 py-2 rounded hover:bg-muted disabled:opacity-40 disabled:cursor-not-allowed"
+                                >
+                                  Submit
+                                </button>
+                              ) : (
+                                <>
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setQuizAnswer("");
+                                      setQuizSubmitted(false);
+                                      setQuizCorrect(false);
+                                      setCardIdx((i) => (i + 1) % cards.length);
+                                    }}
+                                    className="border px-3 py-2 rounded hover:bg-muted"
+                                  >
+                                    Next
+                                  </button>
+
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setQuizAnswer("");
+                                      setQuizSubmitted(false);
+                                      setQuizCorrect(false);
+                                      setCardIdx((i) => (i - 1 + cards.length) % cards.length);
+                                    }}
+                                    className="border border-border px-3 py-2 hover:bg-muted rounded"
+                                  >
+                                    Prev
+                                  </button>
+                                </>
+                              )}
+
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const id = currentCard.id;
+                                  setCardIdx((i) => Math.max(0, Math.min(i, cards.length - 2)));
+                                  setQuizAnswer("");
+                                  setQuizSubmitted(false);
+                                  setQuizCorrect(false);
+                                  deleteCard(id);
+                                }}
+                                className="border border-border px-3 py-2 text-muted-foreground hover:text-danger hover:border-danger rounded"
+                              >
+                                Delete
+                              </button>
+                            </div>
+
+                            {quizSubmitted && (
+                              <div className="mt-3 text-sm">
+                                <div className={quizCorrect ? "text-success" : "text-danger"}>
+                                  {quizCorrect ? "Correct" : "Incorrect"}
+                                </div>
+                                <div className="text-xs text-muted-foreground mt-1">
+                                  Expected: {currentCard.back}
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        </div>
                       </div>
                     ) : (
                       <div className="w-full max-w-xl flex flex-col items-center gap-4">
@@ -587,6 +796,7 @@ function ClassNotes() {
                       </div>
                     )}
                   </div>
+
 
                   {/* composer */}
                   <div className="border-t border-border p-3 flex flex-col gap-2 text-xs">
