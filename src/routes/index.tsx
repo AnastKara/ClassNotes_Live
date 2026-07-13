@@ -22,6 +22,9 @@ const SUBJECTS_ADD_BUTTON_LABEL = "+";
 type Role = "student" | "teacher";
 type View = "notes" | "cards" | "draw";
 
+// Microsoft Notes-like UI uses a vivid blue/teal accent.
+// We keep the rest of the layout unchanged and just restyle the key components.
+
 interface Flashcard {
   id: string;
   room_id: string;
@@ -89,19 +92,38 @@ function ClassNotes() {
     let alive = true;
     
     const roomsRef = collection(db, "rooms");
-    const unsubscribe = onSnapshot(roomsRef, (snapshot) => {
-      if (!alive) return;
-      const map: Record<string, Room> = {};
-      snapshot.forEach((doc) => {
-        const data = doc.data() as Room;
-        map[doc.id] = { ...data, id: doc.id };
-      });
-      setRooms(map);
-      setStatus("live");
-    }, (error) => {
-      console.error("Rooms subscription error:", error);
-      setStatus("offline");
-    });
+    const unsubscribe = onSnapshot(
+      roomsRef,
+      (snapshot) => {
+        if (!alive) return;
+        const map: Record<string, Room> = {};
+
+        snapshot.forEach((doc) => {
+          const data = doc.data() as Room;
+
+          // Prevent local writes -> snapshot echo -> state update -> rerender ping-pong.
+          // If we just wrote this exact content, keep the existing value and clear the skip.
+          const nextContentToSkip = skipNextEcho.current[doc.id];
+          if (nextContentToSkip !== undefined && data.content === nextContentToSkip) {
+            map[doc.id] = {
+              ...data,
+              id: doc.id,
+            };
+            delete skipNextEcho.current[doc.id];
+            return;
+          }
+
+          map[doc.id] = { ...data, id: doc.id };
+        });
+
+        setRooms(map);
+        setStatus("live");
+      },
+      (error) => {
+        console.error("Rooms subscription error:", error);
+        setStatus("offline");
+      }
+    );
 
     return () => {
       alive = false;
@@ -308,8 +330,8 @@ function ClassNotes() {
                         className={
                           "w-full text-left px-2 py-1 flex items-center justify-between group rounded " +
                           (isActive
-                            ? "bg-muted text-foreground"
-                            : "text-muted-foreground hover:text-foreground")
+                            ? "bg-accent/10 text-foreground ring-1 ring-accent/20"
+                            : "text-muted-foreground hover:text-foreground hover:bg-muted/60")
                         }
                         aria-current={isActive ? "page" : undefined}
                       >
@@ -323,7 +345,9 @@ function ClassNotes() {
                           <span className="truncate">{id}</span>
                         </span>
                         {r?.locked && (
-                          <span className="text-danger text-xs">Locked</span>
+                          <span className="text-danger text-xs font-medium bg-danger/10 px-2 py-0.5 rounded">
+                            Locked
+                          </span>
                         )}
                       </button>
                     </li>
@@ -353,8 +377,8 @@ function ClassNotes() {
                       onClick={() => setView("notes")}
                       className={
                         view === "notes"
-                          ? "text-foreground"
-                          : "hover:text-foreground"
+                          ? "text-accent font-semibold"
+                          : "hover:text-foreground hover:text-accent/80"
                       }
                       aria-pressed={view === "notes"}
                     >
@@ -370,8 +394,8 @@ function ClassNotes() {
                       onClick={() => setView("cards")}
                       className={
                         view === "cards"
-                          ? "text-foreground"
-                          : "hover:text-foreground"
+                          ? "text-accent font-semibold"
+                          : "hover:text-foreground hover:text-accent/80"
                       }
                       aria-pressed={view === "cards"}
                     >
@@ -387,8 +411,8 @@ function ClassNotes() {
                       onClick={() => setView("draw")}
                       className={
                         view === "draw"
-                          ? "text-foreground"
-                          : "hover:text-foreground"
+                          ? "text-accent font-semibold"
+                          : "hover:text-foreground hover:text-accent/80"
                       }
                       aria-pressed={view === "draw"}
                     >
@@ -410,8 +434,8 @@ function ClassNotes() {
                     className={
                       "border px-3 py-0.5 transition-colors rounded " +
                       (active?.locked
-                        ? "border-danger text-danger hover:bg-danger hover:text-background"
-                        : "border-border hover:bg-muted")
+                        ? "border-danger/50 text-danger bg-danger/10 hover:bg-danger/15"
+                        : "border-border hover:bg-accent/5 hover:border-accent/30")
                     }
                   >
                     {active?.locked ? "Unlock room" : "Lock room"}
@@ -434,7 +458,7 @@ function ClassNotes() {
                           : "This room is locked. Ask your teacher to unlock it."
                       }
                       aria-label="Room notes"
-                      className="absolute inset-0 w-full h-full resize-none bg-background text-foreground caret-accent p-4 pl-14 outline-none text-sm leading-6 font-mono disabled:text-muted-foreground disabled:cursor-not-allowed focus:ring-2 focus:ring-accent/50"
+                      className="absolute inset-0 w-full h-full resize-none bg-background text-foreground caret-accent p-4 pl-14 outline-none text-sm leading-6 font-mono disabled:text-muted-foreground disabled:cursor-not-allowed focus:ring-2 focus:ring-accent/40"
                     />
 
                     <div
@@ -474,7 +498,7 @@ function ClassNotes() {
                         <button
                           type="button"
                           onClick={() => setFlipped((f) => !f)}
-                          className="w-full min-h-[180px] border border-border p-6 text-left hover:bg-muted transition-colors flex flex-col justify-between rounded"
+                          className="w-full min-h-[180px] border border-border p-6 text-left hover:bg-accent/5 transition-colors flex flex-col justify-between rounded focus:outline-none focus:ring-2 focus:ring-accent/30"
                           aria-label={flipped ? "Hide answer" : "Show answer"}
                         >
                           <div className="text-xs text-muted-foreground uppercase tracking-wider">
