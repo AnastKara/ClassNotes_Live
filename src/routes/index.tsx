@@ -1,8 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
 import React, { useEffect, useRef, useState, useCallback } from "react";
-import { collection, query, where, orderBy, onSnapshot, doc, updateDoc, deleteDoc, addDoc, setDoc } from "firebase/firestore";
+import { collection, query, where, orderBy, onSnapshot, doc, updateDoc, deleteDoc, addDoc } from "firebase/firestore";
 import { db, auth } from "@/integrations/firebase/client";
-import { onAuthStateChanged, signInAnonymously } from "firebase/auth";
+import { onAuthStateChanged, signInAnonymously, getIdToken } from "firebase/auth";
 import { DrawingCanvas } from "@/components/drawing-canvas";
 
 export const Route = createFileRoute("/")({
@@ -605,14 +605,10 @@ function AddSubjectInline({
   SUBJECTS_ADD_BUTTON_LABEL,
   rooms,
   setActiveId,
-  db,
-  setDoc,
 }: {
   SUBJECTS_ADD_BUTTON_LABEL: string;
   rooms: Record<string, Room>;
   setActiveId: (id: string) => void;
-  db: any;
-  setDoc: any;
 }) {
   const [value, setValue] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -628,13 +624,28 @@ function AddSubjectInline({
     }
 
     try {
-      const roomRef = doc(db, "rooms", roomId);
-      await setDoc(roomRef, {
-        name: roomId,
-        content: rooms[roomId]?.content ?? "",
-        locked: rooms[roomId]?.locked ?? false,
-        updated_at: new Date().toISOString(),
+      // Get Firebase ID token for authentication
+      const user = auth.currentUser;
+      if (!user) {
+        throw new Error("Not authenticated");
+      }
+      const idToken = await getIdToken(user);
+
+      // Call backend API to create room
+      const response = await fetch("/api/rooms", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${idToken}`,
+        },
+        body: JSON.stringify({ id: roomId }),
       });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.message || "Failed to create room");
+      }
+
       setValue("");
       setActiveId(roomId);
     } catch (e) {

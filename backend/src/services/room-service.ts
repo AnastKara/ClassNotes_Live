@@ -16,6 +16,32 @@ export class RoomService {
     }));
   }
 
+  async createRoom(roomId: string) {
+    const roomRef = this.db().collection(ROOMS_COLLECTION).doc(roomId);
+    const doc = await roomRef.get();
+
+    if (doc.exists) {
+      return {
+        id: doc.id,
+        ...doc.data(),
+      };
+    }
+
+    const newRoom = {
+      name: roomId,
+      content: "",
+      locked: false,
+      updated_at: new Date().toISOString(),
+    };
+
+    await roomRef.set(newRoom);
+
+    return {
+      id: roomId,
+      ...newRoom,
+    };
+  }
+
   async updateRoomContent(roomId: string, content: string) {
     const roomRef = this.db().collection(ROOMS_COLLECTION).doc(roomId);
     const doc = await roomRef.get();

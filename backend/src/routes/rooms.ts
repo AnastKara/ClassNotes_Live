@@ -41,7 +41,7 @@ export async function roomsRoutes(app: FastifyInstance) {
   );
 
 
-  app.patch(
+app.patch(
     "/rooms/:id/lock",
     {
       preHandler: requireAuth as any,
@@ -53,6 +53,21 @@ export async function roomsRoutes(app: FastifyInstance) {
       const { locked } = req.body as any;
       const updated = await roomService.setRoomLock(id, locked, (req as any).user!.userId);
       return { room: buildRoomDto(updated) };
+    },
+  );
+
+  app.post(
+    "/rooms",
+    {
+      preHandler: requireAuth as any,
+    },
+    async (req) => {
+      const roomId = (req.body as any)?.id;
+      if (typeof roomId !== "string" || !roomId.trim()) {
+        throw new Error("Room ID is required");
+      }
+      const created = await roomService.createRoom(roomId.trim());
+      return { room: buildRoomDto(created) };
     },
   );
 }
