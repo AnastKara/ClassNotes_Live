@@ -22,8 +22,35 @@ const SUBJECTS_ADD_BUTTON_LABEL = "+";
 type Role = "student" | "teacher";
 type View = "notes" | "cards" | "draw";
 
-// Microsoft Notes-like UI uses a vivid blue/teal accent.
-// We keep the rest of the layout unchanged and just restyle the key components.
+// Microsoft Notes-inspired colorful palette
+const SUBJECT_COLORS: Record<string, { bg: string; text: string }> = {
+  math: { bg: "oklch(0.65 0.15 250)", text: "oklch(0.65 0.15 250)" },
+  physics: { bg: "oklch(0.65 0.15 280)", text: "oklch(0.65 0.15 280)" },
+  chemistry: { bg: "oklch(0.65 0.15 180)", text: "oklch(0.65 0.15 180)" },
+  history: { bg: "oklch(0.65 0.15 40)", text: "oklch(0.65 0.15 40)" },
+};
+
+const CARD_BG_COLORS: Record<string, string> = {
+  blue: "oklch(0.92 0.05 250)",
+  green: "oklch(0.92 0.05 150)",
+  orange: "oklch(0.92 0.05 40)",
+  purple: "oklch(0.92 0.05 280)",
+  pink: "oklch(0.92 0.05 340)",
+  yellow: "oklch(0.92 0.05 80)",
+  teal: "oklch(0.92 0.05 180)",
+  red: "oklch(0.92 0.05 25)",
+};
+
+const CARD_TEXT_COLORS: Record<string, string> = {
+  blue: "oklch(0.65 0.15 250)",
+  green: "oklch(0.65 0.15 150)",
+  orange: "oklch(0.65 0.15 40)",
+  purple: "oklch(0.65 0.15 280)",
+  pink: "oklch(0.65 0.15 340)",
+  yellow: "oklch(0.65 0.15 80)",
+  teal: "oklch(0.65 0.15 180)",
+  red: "oklch(0.65 0.15 25)",
+};
 
 interface Flashcard {
   id: string;
@@ -230,6 +257,11 @@ function ClassNotes() {
   const wordCount = active ? active.content.trim().split(/\s+/).filter(Boolean).length : 0;
   const lineCount = active ? active.content.split("\n").length : 0;
   const currentCard = cards[cardIdx];
+  
+  // Get color for current card based on index
+  const cardColorKey = Object.keys(CARD_BG_COLORS)[cardIdx % Object.keys(CARD_BG_COLORS).length] || "blue";
+  const cardColor = CARD_BG_COLORS[cardColorKey];
+  const cardTextColor = CARD_TEXT_COLORS[cardColorKey];
 
   const statusText =
     status === "live"
@@ -312,32 +344,34 @@ function ClassNotes() {
                     SUBJECTS_ADD_BUTTON_LABEL={SUBJECTS_ADD_BUTTON_LABEL}
                     rooms={rooms}
                     setActiveId={setActiveId}
-                    db={db}
-                    setDoc={setDoc}
                   />
                 </div>
               </div>
 
-              <ul className="flex flex-col gap-0.5" aria-label="Subject rooms">
+              <ul className="flex flex-col gap-1" aria-label="Subject rooms">
                 {SUBJECTS.map((id) => {
                   const r = rooms[id];
                   const isActive = id === activeId;
+                  const color = SUBJECT_COLORS[id as string] || SUBJECT_COLORS.math;
                   return (
                     <li key={id}>
                       <button
                         type="button"
                         onClick={() => setActiveId(id)}
                         className={
-                          "w-full text-left px-2 py-1 flex items-center justify-between group rounded " +
+                          "w-full text-left px-2 py-1 flex items-center justify-between group rounded transition-colors " +
                           (isActive
-                            ? "bg-accent/10 text-foreground ring-1 ring-accent/20"
-                            : "text-muted-foreground hover:text-foreground hover:bg-muted/60")
+                            ? "text-foreground"
+                            : "text-muted-foreground hover:text-foreground")
                         }
+                        style={{
+                          backgroundColor: isActive ? color.bg.replace("oklch", "oklch").replace("0.65", "0.15") : "transparent",
+                        }}
                         aria-current={isActive ? "page" : undefined}
                       >
                         <span className="flex items-center gap-2">
                           <span
-                            className="text-muted-foreground"
+                            style={{ color: color.text }}
                             aria-hidden
                           >
                             {isActive ? ">" : " "}
@@ -498,10 +532,11 @@ function ClassNotes() {
                         <button
                           type="button"
                           onClick={() => setFlipped((f) => !f)}
-                          className="w-full min-h-[180px] border border-border p-6 text-left hover:bg-accent/5 transition-colors flex flex-col justify-between rounded focus:outline-none focus:ring-2 focus:ring-accent/30"
+                          className="w-full min-h-[180px] border border-border p-6 text-left hover:opacity-90 transition-colors flex flex-col justify-between rounded focus:outline-none focus:ring-2 focus:ring-accent/30"
                           aria-label={flipped ? "Hide answer" : "Show answer"}
+                          style={{ backgroundColor: cardColor }}
                         >
-                          <div className="text-xs text-muted-foreground uppercase tracking-wider">
+                          <div className="text-xs uppercase tracking-wider" style={{ color: cardTextColor }}>
                             {flipped ? "Answer" : "Question"}
                           </div>
                           <div className="text-lg leading-snug whitespace-pre-wrap">

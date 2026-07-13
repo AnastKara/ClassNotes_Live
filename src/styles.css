@@ -1,63 +1,97 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 
-/* Replaced unknown @theme at-rule with a scoped class to avoid unknown at-rule errors */
-.theme-inline {
-  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
-  --radius-sm: 2px;
-  --radius-md: 3px;
-  --radius-lg: 4px;
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --color-muted: var(--muted);
-  --color-muted-foreground: var(--muted-foreground);
-  --color-border: var(--border);
-  --color-accent: var(--accent);
-  --color-accent-foreground: var(--accent-foreground);
-  --color-danger: var(--danger);
-  --color-primary: var(--foreground);
-  --color-primary-foreground: var(--background);
-}
-
+/* Microsoft Notes-inspired colorful palette */
 :root {
-  /* Microsoft Notes-ish palette (blue/teal accent, cleaner borders) */
-  --background: oklch(0.97 0.02 255); /* near-white paper */
-  --foreground: oklch(0.18 0.02 255); /* ink */
+  /* Background - clean paper white */
+  --background: oklch(0.98 0.01 250);
+  --foreground: oklch(0.15 0.02 250);
 
-  --muted: oklch(0.92 0.03 255);
-  --muted-foreground: oklch(0.45 0.02 255);
+  /* Muted backgrounds */
+  --muted: oklch(0.94 0.03 250);
+  --muted-foreground: oklch(0.42 0.02 250);
 
-  --border: oklch(0.84 0.02 255);
+  /* Borders */
+  --border: oklch(0.86 0.02 250);
 
-  /* Accent = Microsoft-ish blue */
-  --accent: oklch(0.72 0.11 250);
+  /* Accent - Microsoft blue */
+  --accent: oklch(0.65 0.15 250);
   --accent-foreground: oklch(0.98 0 0);
 
-  /* Destructive = red */
+  /* Danger - red for destructive actions */
   --danger: oklch(0.62 0.16 25);
-}
+  --danger-foreground: oklch(0.98 0 0);
 
+  /* Colorful subject tags - Microsoft Notes style */
+  --color-blue: oklch(0.65 0.15 250);
+  --color-green: oklch(0.65 0.15 150);
+  --color-orange: oklch(0.65 0.15 40);
+  --color-purple: oklch(0.65 0.15 280);
+  --color-pink: oklch(0.65 0.15 340);
+  --color-yellow: oklch(0.65 0.15 80);
+  --color-teal: oklch(0.65 0.15 180);
+  --color-red: oklch(0.65 0.15 25);
+
+  /* Card background colors for flashcards */
+  --card-blue: oklch(0.92 0.05 250);
+  --card-green: oklch(0.92 0.05 150);
+  --card-orange: oklch(0.92 0.05 40);
+  --card-purple: oklch(0.92 0.05 280);
+  --card-pink: oklch(0.92 0.05 340);
+  --card-yellow: oklch(0.92 0.05 80);
+  --card-teal: oklch(0.92 0.05 180);
+  --card-red: oklch(0.92 0.05 25);
+}
 
 @layer base {
   * {
-    border-color: var(--color-border);
+    border-color: var(--border);
   }
   html,
   body {
-    background-color: var(--color-background);
-    color: var(--color-foreground);
-    font-family: var(--font-mono);
+    background-color: var(--background);
+    color: var(--foreground);
+    font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
     font-feature-settings: "ss01", "cv02";
     -webkit-font-smoothing: antialiased;
   }
   ::selection {
-    background: var(--color-accent);
-    color: var(--color-accent-foreground);
+    background: var(--accent);
+    color: var(--accent-foreground);
   }
 }
 
 @layer utilities {
   .caret-accent {
-    caret-color: var(--color-accent);
+    caret-color: var(--accent);
   }
+  
+  /* Subject tag colors */
+  .subject-blue { background-color: var(--color-blue); }
+  .subject-green { background-color: var(--color-green); }
+  .subject-orange { background-color: var(--color-orange); }
+  .subject-purple { background-color: var(--color-purple); }
+  .subject-pink { background-color: var(--color-pink); }
+  .subject-yellow { background-color: var(--color-yellow); }
+  .subject-teal { background-color: var(--color-teal); }
+  .subject-red { background-color: var(--color-red); }
+  
+  .subject-blue-text { color: var(--color-blue); }
+  .subject-green-text { color: var(--color-green); }
+  .subject-orange-text { color: var(--color-orange); }
+  .subject-purple-text { color: var(--color-purple); }
+  .subject-pink-text { color: var(--color-pink); }
+  .subject-yellow-text { color: var(--color-yellow); }
+  .subject-teal-text { color: var(--color-teal); }
+  .subject-red-text { color: var(--color-red); }
+  
+  /* Card background colors */
+  .card-blue-bg { background-color: var(--card-blue); }
+  .card-green-bg { background-color: var(--card-green); }
+  .card-orange-bg { background-color: var(--card-orange); }
+  .card-purple-bg { background-color: var(--card-purple); }
+  .card-pink-bg { background-color: var(--card-pink); }
+  .card-yellow-bg { background-color: var(--card-yellow); }
+  .card-teal-bg { background-color: var(--card-teal); }
+  .card-red-bg { background-color: var(--card-red); }
 }
