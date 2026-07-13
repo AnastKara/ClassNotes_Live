@@ -27,7 +27,8 @@ if (typeof window !== "undefined") {
 
   // Also suppress window errors from Chrome extensions
   window.addEventListener("error", (event) => {
-    if (event.message?.includes("No Listener: tabs:outgoing.message.ready")) {
+    if (event.message?.includes("No Listener: tabs:outgoing.message.ready") || 
+        (event.error && event.error.toString().includes("No Listener: tabs:outgoing.message.ready"))) {
       event.preventDefault();
     }
   });
