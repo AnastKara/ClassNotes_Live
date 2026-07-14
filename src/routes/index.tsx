@@ -398,7 +398,7 @@ function ClassNotes() {
                           >
                             {isActive ? ">" : " "}
                           </span>
-                          <span className="truncate">{id}</span>
+                          <span className={"truncate " + (isActive ? "text-white" : "text-black")}>{id}</span>
                         </span>
                         {r?.locked && (
                           <span className="text-danger text-xs font-medium bg-danger/10 px-2 py-0.5 rounded">
