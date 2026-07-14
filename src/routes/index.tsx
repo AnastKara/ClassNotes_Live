@@ -861,7 +861,7 @@ function AddSubjectInline({
       const idToken = await getIdToken(user);
 
       // Call backend API to create room
-      const response = await fetch("/api/rooms", {
+      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL ?? ""}/api/rooms`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
