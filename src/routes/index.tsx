@@ -10,6 +10,8 @@ export const Route = createFileRoute("/")({
   ssr: false,
 });
 
+
+
 interface Room {
   id: string;
   name: string;
@@ -19,7 +21,8 @@ interface Room {
 
 const SUBJECTS = ["math", "physics", "chemistry", "history"] as const;
 const SUBJECTS_ADD_BUTTON_LABEL = "+";
-type Role = "student" | "teacher";
+export type Role = "student" | "teacher";
+
 type View = "notes" | "cards" | "draw";
 
 type CardsMode = "study" | "quiz";
@@ -478,6 +481,7 @@ function ClassNotes() {
                       ·
                     </span>
 
+
                     <button
                       type="button"
                       onClick={() => setView("draw")}
@@ -488,7 +492,7 @@ function ClassNotes() {
                       }
                       aria-pressed={view === "draw"}
                     >
-                      draw
+                      draw (students)
                     </button>
                   </span>
 
@@ -499,7 +503,7 @@ function ClassNotes() {
                   )}
                 </div>
 
-                {view === "notes" && role === "teacher" && (
+{view === "notes" && role === "teacher" && (
                   <button
                     type="button"
                     onClick={toggleLock}

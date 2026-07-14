@@ -26,13 +26,24 @@ interface Comment {
   created_at: string;
 }
 
-const COLORS = ["#ffffff", "#ff6b6b", "#4ecdc4", "#45b7d1", "#96ceb4", "#feca57", "#ff9ff3", "#54a0ff"];
+// Avoid pure white (#ffffff) since it can be invisible on light backgrounds.
+const COLORS = ["#ff6b6b", "#4ecdc4", "#45b7d1", "#96ceb4", "#feca57", "#ff9ff3", "#54a0ff"];
 const STROKE_WIDTHS = [2, 4, 6, 8, 12];
+
+type Tool = "pen" | "eraser";
+
+// Use canvas-native erasing: erase by drawing transparent strokes,
+// then re-render all strokes (including erasures) from Firestore.
+// Firestore still stores an eraser stroke as a special color value.
+const ERASER_COLOR = "__eraser__";
 
 export function DrawingCanvas({ roomId, canEdit }: DrawingCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [isDrawing, setIsDrawing] = useState(false);
   const [currentColor, setCurrentColor] = useState(COLORS[0]);
+  const [tool, setTool] = useState<Tool>("pen");
+
+  const effectiveColor = tool === "eraser" ? ERASER_COLOR : currentColor;
   const [currentWidth, setCurrentWidth] = useState(STROKE_WIDTHS[1]);
   const [strokes, setStrokes] = useState<DrawingStroke[]>([]);
   const [comments, setComments] = useState<Comment[]>([]);
@@ -121,7 +132,7 @@ export function DrawingCanvas({ roomId, canEdit }: DrawingCanvasProps) {
 
   const handlePointerDown = useCallback((e: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>) => {
     if (!canEdit) return;
-    
+
     const pos = getPointerPos(e);
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -130,7 +141,7 @@ export function DrawingCanvas({ roomId, canEdit }: DrawingCanvasProps) {
 
     ctx.beginPath();
     ctx.moveTo(pos.x, pos.y);
-    ctx.strokeStyle = currentColor;
+    ctx.strokeStyle = tool === "eraser" ? "rgba(0,0,0,0)" : currentColor;
     ctx.lineWidth = currentWidth;
     ctx.lineCap = "round";
     ctx.lineJoin = "round";
@@ -172,7 +183,7 @@ export function DrawingCanvas({ roomId, canEdit }: DrawingCanvasProps) {
         await addDoc(strokesRef, {
           room_id: roomId,
           points: currentPointsRef.current,
-          color: currentColor,
+          color: effectiveColor,
           width: currentWidth,
           created_at: new Date().toISOString(),
         });
@@ -238,7 +249,7 @@ export function DrawingCanvas({ roomId, canEdit }: DrawingCanvasProps) {
       {/* Toolbar */}
       <div className="border-b border-border px-4 h-9 flex items-center justify-between text-xs">
         <div className="flex items-center gap-3">
-          <span className="text-muted-foreground">drawing tools:</span>
+          <span className="text-muted-foreground">tools:</span>
           <div className="flex items-center gap-1">
             {COLORS.map((color) => (
               <button
@@ -252,6 +263,28 @@ export function DrawingCanvas({ roomId, canEdit }: DrawingCanvasProps) {
                 aria-label={`Color ${color}`}
               />
             ))}
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setTool("pen")}
+              className={cn(
+                "border border-border px-2 py-0.5 rounded hover:bg-muted",
+                tool === "pen" && "border-accent/50 bg-accent/10 text-accent"
+              )}
+            >
+              pen
+            </button>
+            <button
+              type="button"
+              onClick={() => setTool("eraser")}
+              className={cn(
+                "border border-border px-2 py-0.5 rounded hover:bg-muted",
+                tool === "eraser" && "border-accent/50 bg-accent/10 text-accent"
+              )}
+            >
+              rubber
+            </button>
           </div>
           <div className="flex items-center gap-1">
             {STROKE_WIDTHS.map((width) => (
