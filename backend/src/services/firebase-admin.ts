@@ -3,6 +3,9 @@
 
 import admin from "firebase-admin";
 import { App } from "firebase-admin/app";
+import { readFileSync } from "fs";
+import { fileURLToPath } from "url";
+import { dirname, join } from "path";
 
 function formatPrivateKey(key: string): string {
   // The key from .env has \n as literal characters, need to convert to actual newlines
@@ -22,18 +25,30 @@ let _app: App | undefined;
 export function getFirebaseAdminApp(): App {
   if (_app) return _app;
 
-  const projectId = requireEnv("FIREBASE_PROJECT_ID");
-  const clientEmail = requireEnv("FIREBASE_CLIENT_EMAIL");
-  const privateKey = formatPrivateKey(requireEnv("FIREBASE_PRIVATE_KEY"));
+  // Try to load from service account file first (more reliable)
+  const __filename = fileURLToPath(import.meta.url);
+  const __dirname = dirname(__filename);
+  const serviceAccountPath = join(__dirname, "../../service-account.json");
 
-  // Ensure we don't re-initialize in dev/hot reload.
-  _app = admin.apps.length ? admin.apps[0]! : admin.initializeApp({
-    credential: admin.credential.cert({
-      projectId,
-      clientEmail,
-      privateKey,
-    }),
-  });
+  try {
+    const serviceAccount = JSON.parse(readFileSync(serviceAccountPath, "utf8"));
+    _app = admin.apps.length ? admin.apps[0]! : admin.initializeApp({
+      credential: admin.credential.cert(serviceAccount),
+    });
+  } catch (e) {
+    // Fallback to environment variables
+    const projectId = requireEnv("FIREBASE_PROJECT_ID");
+    const clientEmail = requireEnv("FIREBASE_CLIENT_EMAIL");
+    const privateKey = formatPrivateKey(requireEnv("FIREBASE_PRIVATE_KEY"));
+
+    _app = admin.apps.length ? admin.apps[0]! : admin.initializeApp({
+      credential: admin.credential.cert({
+        projectId,
+        clientEmail,
+        privateKey,
+      }),
+    });
+  }
 
   return _app!;
 }

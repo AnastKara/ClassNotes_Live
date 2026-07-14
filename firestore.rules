@@ -27,7 +27,7 @@ service cloud.firestore {
     match /rooms/{roomId} {
       allow read: if true; // Public read
       allow update: if isAuthenticated();
-      allow create: if false; // Rooms are pre-created
+      allow create: if isAuthenticated(); // Allow authenticated users to create rooms
       allow delete: if false;
     }
     

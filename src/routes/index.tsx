@@ -856,26 +856,56 @@ function AddSubjectInline({
       // Get Firebase ID token for authentication
       const user = auth.currentUser;
       if (!user) {
-        throw new Error("Not authenticated");
+        throw new Error("Firebase auth not ready (no currentUser). Try again in a second.");
       }
-      const idToken = await getIdToken(user);
 
-      // Call backend API to create room
-      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL ?? ""}/api/rooms`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${idToken}`,
-        },
-        body: JSON.stringify({ id: roomId }),
-      });
+      // Force refresh to avoid using an uninitialized/expired token during initial anonymous sign-in.
+      const idToken = await getIdToken(user, true);
+      if (!idToken) {
+        throw new Error("Firebase auth token not available. Try again in a second.");
+      }
 
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.message || "Failed to create room");
+      // Call backend API to create room.
+      // Some first-click flows can race Firebase anonymous initialization;
+      // retry once on 401 by forcing a fresh token.
+      const callCreateRoom = async (token: string) => {
+        const response = await fetch(`${import.meta.env.VITE_API_BASE_URL ?? ""}/api/rooms`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${token}`,
+          },
+          body: JSON.stringify({ id: roomId }),
+        });
+
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({}));
+          const backendMessage =
+            errorData?.error?.message ??
+            errorData?.message ??
+            JSON.stringify(errorData);
+          const err = new Error(backendMessage || "Failed to create room");
+          (err as any).status = response.status;
+          throw err;
+        }
+      };
+
+      try {
+        await callCreateRoom(idToken);
+      } catch (err) {
+        const status = (err as any)?.status;
+        if (status === 401) {
+          // Force refresh and retry once
+          const refreshedToken = await getIdToken(user, true);
+          if (!refreshedToken) throw err;
+          await callCreateRoom(refreshedToken);
+        } else {
+          throw err;
+        }
       }
 
       setValue("");
+
       setActiveId(roomId);
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
