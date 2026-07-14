@@ -43,6 +43,16 @@
   --card-red: oklch(0.92 0.05 25);
 }
 
+:root[data-theme="dark"] {
+  --background: oklch(0.17 0.02 250);
+  --foreground: oklch(0.97 0.02 250);
+
+  --muted: oklch(0.24 0.02 250);
+  --muted-foreground: oklch(0.76 0.03 250);
+
+  --border: oklch(0.32 0.02 250);
+}
+
 @layer base {
   * {
     border-color: var(--border);

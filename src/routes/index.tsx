@@ -308,7 +308,7 @@ function ClassNotes() {
       {!initError && (
         <>
           {/* top bar */}
-          <header className="flex items-center justify-between border-b border-border px-4 h-10 text-sm">
+              <header className="flex items-center justify-between border-b border-border px-4 h-10 text-sm">
             <div className="flex items-center gap-3">
               <span className="text-accent" aria-hidden>
                 ●
@@ -319,6 +319,22 @@ function ClassNotes() {
             <div className="flex items-center gap-4 text-muted-foreground">
               <span aria-live="polite">{statusText}</span>
               <span aria-hidden>{peers} online</span>
+
+              {/* Theme toggle */}
+              <button
+                type="button"
+                className="border border-border px-3 py-0.5 hover:bg-muted transition-colors rounded"
+                onClick={() => {
+                  const current = document.documentElement.dataset.theme === "dark" ? "dark" : "light";
+                  const next = current === "dark" ? "light" : "dark";
+                  localStorage.setItem("cn.theme", next);
+                  document.documentElement.dataset.theme = next;
+                  document.documentElement.style.colorScheme = next;
+                }}
+                aria-label="Toggle theme"
+              >
+                theme: {document.documentElement.dataset.theme === "dark" ? "dark" : "light"}
+              </button>
 
               <button
                 type="button"

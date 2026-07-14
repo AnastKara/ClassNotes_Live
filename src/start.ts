@@ -39,7 +39,19 @@ function App() {
   return React.createElement(RouterProvider, { router });
 }
 
+// Initialize theme before React paints.
+// Note: top-level import() must run before render; we call it synchronously via dynamic import + await.
+(async () => {
+  try {
+    const { initTheme } = await import("./lib/theme");
+    initTheme();
+  } catch {
+    // ignore
+  }
+})();
+
 // Wrap the entire app in a try-catch to handle any errors
+
 try {
   const el = document.getElementById("root");
   if (!el) throw new Error("Missing #root element");
