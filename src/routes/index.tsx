@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, redirect } from "@tanstack/react-router";
 import React, { useEffect, useRef, useState, useCallback } from "react";
 import {
   collection,
@@ -12,7 +12,8 @@ import {
   addDoc,
 } from "firebase/firestore";
 import { db, auth } from "@/integrations/firebase/client";
-import { onAuthStateChanged, signInAnonymously, getIdToken } from "firebase/auth";
+import { onAuthStateChanged, signOut, getIdToken } from "firebase/auth";
+import { useNavigate } from "@tanstack/react-router";
 import { DrawingCanvas } from "@/components/drawing-canvas";
 
 export const Route = createFileRoute("/")({
@@ -76,6 +77,8 @@ interface Flashcard {
 type InitStatus = "connecting" | "live" | "offline";
 
 function ClassNotes() {
+  const navigate = useNavigate();
+  const [authReady, setAuthReady] = useState(false);
   const [role, setRole] = useState<Role>("student");
   const [activeId, setActiveId] = useState<string>("math");
   const [view, setView] = useState<View>("notes");
@@ -88,7 +91,6 @@ function ClassNotes() {
   const [cardIdx, setCardIdx] = useState(0);
   const [flipped, setFlipped] = useState(false);
 
-  // Quiz state (front=question, back=expected answer)
   const [cardsMode, setCardsMode] = useState<CardsMode>("study");
   const [quizAnswer, setQuizAnswer] = useState("");
   const [quizSubmitted, setQuizSubmitted] = useState(false);
@@ -110,8 +112,27 @@ function ClassNotes() {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const skipNextEcho = useRef<Record<string, string>>({});
 
+  // Auth guard: redirect anonymous users to login
+  useEffect(() => {
+    const unsub = onAuthStateChanged(auth, (user) => {
+      if (!user) {
+        // Not signed in at all
+        navigate({ to: "/login" });
+        return;
+      }
+      // Check if the user is anonymous (created via signInAnonymously)
+      if (user.isAnonymous) {
+        navigate({ to: "/login" });
+        return;
+      }
+      setAuthReady(true);
+    });
+    return () => unsub();
+  }, [navigate]);
+
   // Fetch role from backend profile (custom claims -> users/me profile)
   useEffect(() => {
+    if (!authReady) return;
     let alive = true;
 
     async function syncRole() {
@@ -137,37 +158,20 @@ function ClassNotes() {
     return () => {
       alive = false;
     };
-  }, []);
+  }, [authReady]);
 
   // Firebase env validation: prevent blank screen when env vars are missing
-
   useEffect(() => {
     try {
-      // accessing db triggers env-var validation in src/integrations/firebase/client.ts
       void db;
     } catch (e) {
       setInitError(e instanceof Error ? e.message : String(e));
     }
   }, []);
 
-
-  // Anonymous authentication for presence tracking
-  useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
-      if (!user) {
-        // Sign in anonymously for presence tracking
-        try {
-          await signInAnonymously(auth);
-        } catch (e) {
-          console.error("Failed to sign in anonymously:", e);
-        }
-      }
-    });
-    return () => unsubscribe();
-  }, []);
-
   // initial fetch + realtime subscription for rooms
   useEffect(() => {
+    if (!authReady) return;
     let alive = true;
 
     const roomsRef = collection(db, "rooms");
@@ -180,8 +184,6 @@ function ClassNotes() {
         snapshot.forEach((doc) => {
           const data = doc.data() as Room;
 
-          // Prevent local writes -> snapshot echo -> state update -> rerender ping-pong.
-          // If we just wrote this exact content, keep the existing value and clear the skip.
           const nextContentToSkip = skipNextEcho.current[doc.id];
           if (nextContentToSkip !== undefined && data.content === nextContentToSkip) {
             map[doc.id] = {
@@ -208,7 +210,7 @@ function ClassNotes() {
       alive = false;
       unsubscribe();
     };
-  }, []);
+  }, [authReady]);
 
   const active = rooms[activeId];
   const roomLocked = !!active?.locked;
@@ -228,7 +230,6 @@ function ClassNotes() {
     }
   }, []);
 
-  // throttled push
   const pushTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const onChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const value = e.target.value;
@@ -252,8 +253,18 @@ function ClassNotes() {
     }
   };
 
+  const handleSignOut = async () => {
+    try {
+      await signOut(auth);
+      navigate({ to: "/login" });
+    } catch (e) {
+      console.error("Sign out failed:", e);
+    }
+  };
+
   // fetch + subscribe flashcards for active room
   useEffect(() => {
+    if (!authReady) return;
     setCardIdx(0);
     setFlipped(false);
 
@@ -275,7 +286,7 @@ function ClassNotes() {
     );
 
     return () => unsubscribe();
-  }, [activeId]);
+  }, [activeId, authReady]);
 
   const addCard = async () => {
     const front = newFront.trim();
@@ -309,7 +320,6 @@ function ClassNotes() {
   const lineCount = active ? active.content.split("\n").length : 0;
   const currentCard = cards[cardIdx];
 
-  // Get color for current card based on index
   const cardColorKey =
     Object.keys(CARD_BG_COLORS)[cardIdx % Object.keys(CARD_BG_COLORS).length] || "blue";
   const cardColor = CARD_BG_COLORS[cardColorKey];
@@ -318,15 +328,23 @@ function ClassNotes() {
   const statusText =
     status === "live" ? "Connected" : status === "connecting" ? "Connecting…" : "Offline";
 
+  if (!authReady) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="border-2 border-foreground px-6 py-4 shadow-[4px_4px_0px_0px_var(--foreground)]">
+          <div className="text-lg font-bold">checking auth...</div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen flex flex-col">
       {initError && (
         <div className="p-6">
-          <div className="max-w-xl border border-border rounded-md p-4">
-            <div className="text-lg font-semibold">Firebase is not configured</div>
-            <div className="mt-2 text-sm text-muted-foreground whitespace-pre-wrap">
-              {initError}
-            </div>
+          <div className="max-w-xl border-2 border-foreground p-4 shadow-[4px_4px_0px_0px_var(--foreground)]">
+            <div className="text-lg font-bold">Firebase is not configured</div>
+            <div className="mt-2 text-sm whitespace-pre-wrap">{initError}</div>
           </div>
         </div>
       )}
@@ -334,22 +352,27 @@ function ClassNotes() {
       {!initError && (
         <>
           {/* top bar */}
-          <header className="flex items-center justify-between border-b border-border px-4 h-10 text-sm">
+          <header className="flex items-center justify-between border-b-2 border-foreground px-4 h-10 text-sm">
             <div className="flex items-center gap-3">
               <span className="text-accent" aria-hidden>
                 ●
               </span>
-              <span className="text-muted-foreground">classnotes.live</span>
+              <span className="font-bold">classnotes.live</span>
             </div>
 
-            <div className="flex items-center gap-4 text-muted-foreground">
-              <span aria-live="polite">{statusText}</span>
-              <span aria-hidden>{peers} online</span>
+            <div className="flex items-center gap-4">
+              <span className="text-xs">{statusText}</span>
+              <span className="text-xs">{peers} online</span>
+
+              {/* Role badge */}
+              <div className="border-2 border-foreground px-2 py-0.5 text-xs font-bold shadow-[2px_2px_0px_0px_var(--foreground)]">
+                {role === "teacher" ? "TEACHER" : "student"}
+              </div>
 
               {/* Theme toggle */}
               <button
                 type="button"
-                className="border border-border px-3 py-0.5 hover:bg-muted transition-colors rounded"
+                className="border-2 border-foreground px-3 py-0.5 hover:bg-foreground hover:text-background transition-colors text-xs font-bold shadow-[2px_2px_0px_0px_var(--foreground)]"
                 onClick={() => {
                   const current =
                     document.documentElement.dataset.theme === "dark" ? "dark" : "light";
@@ -360,47 +383,29 @@ function ClassNotes() {
                 }}
                 aria-label="Toggle theme"
               >
-                theme: {document.documentElement.dataset.theme === "dark" ? "dark" : "light"}
+                {document.documentElement.dataset.theme === "dark" ? "☀" : "☾"}
               </button>
 
-              <div className="border border-border px-3 py-0.5 rounded bg-background" aria-label="Current role">
-                role: {role}
-              </div>
-
+              {/* Sign out */}
+              <button
+                type="button"
+                onClick={handleSignOut}
+                className="border-2 border-foreground px-3 py-0.5 hover:bg-foreground hover:text-background transition-colors text-xs font-bold shadow-[2px_2px_0px_0px_var(--foreground)]"
+              >
+                sign out
+              </button>
             </div>
           </header>
 
           <div className="flex flex-1 min-h-0">
             {/* sidebar */}
-            <aside className="w-64 border-r border-border p-3 flex flex-col text-sm">
-              <div className="text-xs text-muted-foreground mb-3 uppercase tracking-wider">
-                subjects
-              </div>
+            <aside className="w-64 border-r-2 border-foreground p-3 flex flex-col text-sm">
+              <div className="text-xs font-bold uppercase tracking-wider mb-3">subjects</div>
 
               <div className="mb-2">
-                <div className="text-[12px] text-muted-foreground mb-1">
-                  Add or select a subject room
-                </div>
+                <div className="text-[12px] mb-1">Add or select a subject room</div>
 
                 <div className="flex gap-2">
-                  <input
-                    value={activeId}
-                    onChange={() => {
-                      // no-op (keeps layout stable)
-                    }}
-                    className="hidden"
-                    aria-hidden
-                  />
-                  <input
-                    value={""}
-                    onChange={() => {
-                      // no-op; replaced below with local state control
-                    }}
-                    className="hidden"
-                    aria-hidden
-                  />
-
-                  {/* Inline add: students can create a new subject room without using prompt dialogs */}
                   <AddSubjectInline
                     SUBJECTS_ADD_BUTTON_LABEL={SUBJECTS_ADD_BUTTON_LABEL}
                     rooms={rooms}
@@ -420,10 +425,8 @@ function ClassNotes() {
                         type="button"
                         onClick={() => setActiveId(id)}
                         className={
-                          "w-full text-left px-2 py-1 flex items-center justify-between group rounded transition-colors " +
-                          (isActive
-                            ? "text-foreground"
-                            : "text-muted-foreground hover:text-foreground")
+                          "w-full text-left px-2 py-1 flex items-center justify-between group transition-colors " +
+                          (isActive ? "text-foreground" : "hover:bg-muted")
                         }
                         style={{
                           backgroundColor: isActive
@@ -434,15 +437,15 @@ function ClassNotes() {
                       >
                         <span className="flex items-center gap-2">
                           <span style={{ color: color.text }} aria-hidden>
-                            {isActive ? ">" : " "}
+                            {isActive ? "▸" : " "}
                           </span>
-                          <span className={"truncate " + (isActive ? "text-white" : "text-black")}>
+                          <span className={"truncate " + (isActive ? "font-bold text-white" : "")}>
                             {id}
                           </span>
                         </span>
                         {r?.locked && (
-                          <span className="text-danger text-xs font-medium bg-danger/10 px-2 py-0.5 rounded">
-                            Locked
+                          <span className="border-2 border-danger text-danger text-xs font-bold px-1.5 py-0.5">
+                            LOCKED
                           </span>
                         )}
                       </button>
@@ -451,19 +454,19 @@ function ClassNotes() {
                 })}
               </ul>
 
-              <div className="mt-auto pt-3 text-[12px] text-muted-foreground leading-relaxed">
+              <div className="mt-auto pt-3 text-[12px] leading-relaxed">
                 {role === "teacher"
-                  ? "Teacher view: lock a room to freeze edits. Students can still view."
-                  : "Student view: type freely unless the room is locked by a teacher."}
+                  ? "Teacher: lock a room to freeze edits. Students can still view."
+                  : "Student: type freely unless the room is locked by a teacher."}
               </div>
             </aside>
 
             {/* editor */}
             <main className="flex-1 flex flex-col min-w-0">
-              <div className="flex items-center justify-between border-b border-border px-4 h-9 text-sm text-muted-foreground">
+              <div className="flex items-center justify-between border-b-2 border-foreground px-4 h-9 text-sm">
                 <div className="flex items-center gap-4">
                   <span className="flex items-center gap-2 flex-wrap">
-                    <span className="text-foreground font-medium">{activeId}</span>
+                    <span className="font-bold">{activeId}</span>
                     <span className="text-muted-foreground" aria-hidden>
                       /
                     </span>
@@ -471,11 +474,7 @@ function ClassNotes() {
                     <button
                       type="button"
                       onClick={() => setView("notes")}
-                      className={
-                        view === "notes"
-                          ? "text-accent font-semibold"
-                          : "hover:text-foreground hover:text-accent/80"
-                      }
+                      className={view === "notes" ? "font-bold" : "hover:font-bold"}
                       aria-pressed={view === "notes"}
                     >
                       notes.md
@@ -488,11 +487,7 @@ function ClassNotes() {
                     <button
                       type="button"
                       onClick={() => setView("cards")}
-                      className={
-                        view === "cards"
-                          ? "text-accent font-semibold"
-                          : "hover:text-foreground hover:text-accent/80"
-                      }
+                      className={view === "cards" ? "font-bold" : "hover:font-bold"}
                       aria-pressed={view === "cards"}
                     >
                       cards ({cards.length})
@@ -505,11 +500,7 @@ function ClassNotes() {
                     <button
                       type="button"
                       onClick={() => setView("draw")}
-                      className={
-                        view === "draw"
-                          ? "text-accent font-semibold"
-                          : "hover:text-foreground hover:text-accent/80"
-                      }
+                      className={view === "draw" ? "font-bold" : "hover:font-bold"}
                       aria-pressed={view === "draw"}
                     >
                       draw (students)
@@ -517,9 +508,7 @@ function ClassNotes() {
                   </span>
 
                   {view === "notes" && active?.locked && (
-                    <span className="text-danger" role="status">
-                      — Locked by teacher
-                    </span>
+                    <span className="text-danger font-bold">— Locked by teacher</span>
                   )}
                 </div>
 
@@ -528,13 +517,13 @@ function ClassNotes() {
                     type="button"
                     onClick={toggleLock}
                     className={
-                      "border px-3 py-0.5 transition-colors rounded " +
+                      "border-2 px-3 py-0.5 transition-colors font-bold shadow-[2px_2px_0px_0px_var(--foreground)] " +
                       (active?.locked
-                        ? "border-danger/50 text-danger bg-danger/10 hover:bg-danger/15"
-                        : "border-border hover:bg-accent/5 hover:border-accent/30")
+                        ? "border-danger text-danger bg-danger/10"
+                        : "border-foreground hover:bg-foreground hover:text-background")
                     }
                   >
-                    {active?.locked ? "Unlock room" : "Lock room"}
+                    {active?.locked ? "Unlock" : "Lock"}
                   </button>
                 )}
               </div>
@@ -554,12 +543,12 @@ function ClassNotes() {
                           : "This room is locked. Ask your teacher to unlock it."
                       }
                       aria-label="Room notes"
-                      className="absolute inset-0 w-full h-full resize-none bg-background text-foreground caret-accent p-4 pl-14 outline-none text-sm leading-6 font-mono disabled:text-muted-foreground disabled:cursor-not-allowed focus:ring-2 focus:ring-accent/40"
+                      className="absolute inset-0 w-full h-full resize-none bg-background text-foreground caret-accent p-4 pl-14 outline-none text-sm leading-6 font-mono disabled:text-muted-foreground disabled:cursor-not-allowed"
                     />
 
                     <div
                       aria-hidden
-                      className="absolute top-0 left-0 h-full w-10 pt-4 pointer-events-none text-right pr-2 text-xs text-muted-foreground leading-6 border-r border-border select-none overflow-hidden"
+                      className="absolute top-0 left-0 h-full w-10 pt-4 pointer-events-none text-right pr-2 text-xs text-muted-foreground leading-6 border-r-2 border-foreground select-none overflow-hidden"
                     >
                       {Array.from({ length: Math.max(lineCount, 20) }).map((_, i) => (
                         <div key={i}>{i + 1}</div>
@@ -567,18 +556,18 @@ function ClassNotes() {
                     </div>
                   </div>
 
-                  <footer className="border-t border-border px-4 h-7 flex items-center justify-between text-xs text-muted-foreground">
+                  <footer className="border-t-2 border-foreground px-4 h-7 flex items-center justify-between text-xs">
                     <div>
                       {lineCount} lines · {wordCount} words · {active?.content.length ?? 0} chars
                     </div>
                     <div>utf-8 · md · {status === "live" ? "saved" : "pending"}</div>
                   </footer>
                 </>
-              ) : (
+              ) : view === "cards" ? (
                 <div className="flex-1 min-h-0 flex flex-col">
                   {/* mode toggle */}
                   <div className="px-4 pt-4">
-                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                    <div className="flex items-center gap-2 text-xs">
                       <button
                         type="button"
                         onClick={() => {
@@ -588,10 +577,10 @@ function ClassNotes() {
                           setQuizCorrect(false);
                         }}
                         className={
-                          "border px-3 py-1 rounded transition-colors " +
+                          "border-2 px-3 py-1 transition-colors font-bold shadow-[2px_2px_0px_0px_var(--foreground)] " +
                           (cardsMode === "study"
-                            ? "border-accent/50 bg-accent/10 text-accent"
-                            : "border-border hover:bg-muted")
+                            ? "bg-foreground text-background"
+                            : "border-foreground hover:bg-foreground hover:text-background")
                         }
                         aria-pressed={cardsMode === "study"}
                       >
@@ -606,10 +595,10 @@ function ClassNotes() {
                           setQuizCorrect(false);
                         }}
                         className={
-                          "border px-3 py-1 rounded transition-colors " +
+                          "border-2 px-3 py-1 transition-colors font-bold shadow-[2px_2px_0px_0px_var(--foreground)] " +
                           (cardsMode === "quiz"
-                            ? "border-accent/50 bg-accent/10 text-accent"
-                            : "border-border hover:bg-muted")
+                            ? "bg-foreground text-background"
+                            : "border-foreground hover:bg-foreground hover:text-background")
                         }
                         aria-pressed={cardsMode === "quiz"}
                       >
@@ -617,7 +606,7 @@ function ClassNotes() {
                       </button>
 
                       {cardsMode === "quiz" && (
-                        <span className="ml-auto text-muted-foreground">
+                        <span className="ml-auto">
                           Score: {quizCorrectCount}/{quizTotalCount}
                         </span>
                       )}
@@ -633,7 +622,7 @@ function ClassNotes() {
                             setQuizTotalCount(0);
                             setCardIdx(0);
                           }}
-                          className="border border-border px-3 py-1 hover:bg-muted rounded"
+                          className="border-2 border-foreground px-3 py-1 hover:bg-foreground hover:text-background font-bold shadow-[2px_2px_0px_0px_var(--foreground)]"
                         >
                           Restart
                         </button>
@@ -644,21 +633,19 @@ function ClassNotes() {
                   {/* study/quiz area */}
                   <div className="flex-1 min-h-0 flex items-center justify-center p-6">
                     {cards.length === 0 ? (
-                      <div className="text-sm text-muted-foreground">
-                        No cards yet. Add one below to start.
-                      </div>
+                      <div className="text-sm">No cards yet. Add one below to start.</div>
                     ) : cardsMode === "quiz" ? (
                       <div className="w-full max-w-xl flex flex-col items-center gap-4">
-                        <div className="text-xs text-muted-foreground" aria-live="polite">
+                        <div className="text-xs" aria-live="polite">
                           Question {cardIdx + 1} of {cards.length}
                         </div>
 
                         <div
-                          className="w-full min-h-[180px] border border-border p-6 rounded focus:outline-none"
+                          className="w-full min-h-[180px] border-2 border-foreground p-6 shadow-[4px_4px_0px_0px_var(--foreground)]"
                           style={{ backgroundColor: cardColor }}
                         >
                           <div
-                            className="text-xs uppercase tracking-wider"
+                            className="text-xs font-bold uppercase tracking-wider"
                             style={{ color: cardTextColor }}
                           >
                             Question
@@ -668,13 +655,13 @@ function ClassNotes() {
                           </div>
 
                           <div className="mt-4">
-                            <label className="text-xs text-muted-foreground">Your answer</label>
+                            <label className="text-xs">Your answer</label>
                             <input
                               value={quizAnswer}
                               onChange={(e) => setQuizAnswer(e.target.value)}
                               disabled={quizSubmitted}
                               placeholder="Type your answer"
-                              className="mt-1 w-full bg-background border border-border px-3 py-2 outline-none focus:border-accent focus:ring-2 focus:ring-accent/40 rounded text-sm"
+                              className="mt-1 w-full bg-background border-2 border-foreground px-3 py-2 outline-none text-sm"
                             />
 
                             <div className="mt-3 flex items-center gap-2">
@@ -692,7 +679,7 @@ function ClassNotes() {
                                     setQuizTotalCount((t) => t + 1);
                                   }}
                                   disabled={!quizAnswer.trim()}
-                                  className="border px-3 py-2 rounded hover:bg-muted disabled:opacity-40 disabled:cursor-not-allowed"
+                                  className="border-2 border-foreground px-3 py-2 hover:bg-foreground hover:text-background font-bold shadow-[2px_2px_0px_0px_var(--foreground)] disabled:opacity-40 disabled:cursor-not-allowed"
                                 >
                                   Submit
                                 </button>
@@ -706,11 +693,10 @@ function ClassNotes() {
                                       setQuizCorrect(false);
                                       setCardIdx((i) => (i + 1) % cards.length);
                                     }}
-                                    className="border px-3 py-2 rounded hover:bg-muted"
+                                    className="border-2 border-foreground px-3 py-2 hover:bg-foreground hover:text-background font-bold shadow-[2px_2px_0px_0px_var(--foreground)]"
                                   >
                                     Next
                                   </button>
-
                                   <button
                                     type="button"
                                     onClick={() => {
@@ -719,7 +705,7 @@ function ClassNotes() {
                                       setQuizCorrect(false);
                                       setCardIdx((i) => (i - 1 + cards.length) % cards.length);
                                     }}
-                                    className="border border-border px-3 py-2 hover:bg-muted rounded"
+                                    className="border-2 border-foreground px-3 py-2 hover:bg-foreground hover:text-background font-bold shadow-[2px_2px_0px_0px_var(--foreground)]"
                                   >
                                     Prev
                                   </button>
@@ -736,7 +722,7 @@ function ClassNotes() {
                                   setQuizCorrect(false);
                                   deleteCard(id);
                                 }}
-                                className="border border-border px-3 py-2 text-muted-foreground hover:text-danger hover:border-danger rounded"
+                                className="border-2 border-danger px-3 py-2 text-danger hover:bg-danger hover:text-background font-bold shadow-[2px_2px_0px_0px_var(--danger)]"
                               >
                                 Delete
                               </button>
@@ -744,12 +730,16 @@ function ClassNotes() {
 
                             {quizSubmitted && (
                               <div className="mt-3 text-sm">
-                                <div className={quizCorrect ? "text-success" : "text-danger"}>
-                                  {quizCorrect ? "Correct" : "Incorrect"}
+                                <div
+                                  className={
+                                    quizCorrect
+                                      ? "text-green-700 font-bold"
+                                      : "text-danger font-bold"
+                                  }
+                                >
+                                  {quizCorrect ? "✓ Correct" : "✗ Incorrect"}
                                 </div>
-                                <div className="text-xs text-muted-foreground mt-1">
-                                  Expected: {currentCard.back}
-                                </div>
+                                <div className="text-xs mt-1">Expected: {currentCard.back}</div>
                               </div>
                             )}
                           </div>
@@ -757,19 +747,19 @@ function ClassNotes() {
                       </div>
                     ) : (
                       <div className="w-full max-w-xl flex flex-col items-center gap-4">
-                        <div className="text-xs text-muted-foreground" aria-live="polite">
+                        <div className="text-xs" aria-live="polite">
                           Card {cardIdx + 1} of {cards.length}
                         </div>
 
                         <button
                           type="button"
                           onClick={() => setFlipped((f) => !f)}
-                          className="w-full min-h-[180px] border border-border p-6 text-left hover:opacity-90 transition-colors flex flex-col justify-between rounded focus:outline-none focus:ring-2 focus:ring-accent/30"
+                          className="w-full min-h-[180px] border-2 border-foreground p-6 text-left hover:opacity-90 transition-opacity flex flex-col justify-between shadow-[4px_4px_0px_0px_var(--foreground)]"
                           aria-label={flipped ? "Hide answer" : "Show answer"}
                           style={{ backgroundColor: cardColor }}
                         >
                           <div
-                            className="text-xs uppercase tracking-wider"
+                            className="text-xs font-bold uppercase tracking-wider"
                             style={{ color: cardTextColor }}
                           >
                             {flipped ? "Answer" : "Question"}
@@ -777,7 +767,7 @@ function ClassNotes() {
                           <div className="text-lg leading-snug whitespace-pre-wrap">
                             {flipped ? currentCard.back : currentCard.front}
                           </div>
-                          <div className="text-xs text-muted-foreground text-right">
+                          <div className="text-xs text-right">
                             {flipped ? "Click to hide" : "Click to reveal"}
                           </div>
                         </button>
@@ -789,22 +779,20 @@ function ClassNotes() {
                               setFlipped(false);
                               setCardIdx((i) => (i - 1 + cards.length) % cards.length);
                             }}
-                            className="border border-border px-3 py-1 hover:bg-muted rounded"
+                            className="border-2 border-foreground px-3 py-1 hover:bg-foreground hover:text-background font-bold shadow-[2px_2px_0px_0px_var(--foreground)]"
                           >
                             Prev
                           </button>
-
                           <button
                             type="button"
                             onClick={() => {
                               setFlipped(false);
                               setCardIdx((i) => (i + 1) % cards.length);
                             }}
-                            className="border border-border px-3 py-1 hover:bg-muted rounded"
+                            className="border-2 border-foreground px-3 py-1 hover:bg-foreground hover:text-background font-bold shadow-[2px_2px_0px_0px_var(--foreground)]"
                           >
                             Next
                           </button>
-
                           <button
                             type="button"
                             onClick={() => {
@@ -813,7 +801,7 @@ function ClassNotes() {
                               setFlipped(false);
                               deleteCard(id);
                             }}
-                            className="border border-border px-3 py-1 text-muted-foreground hover:text-danger hover:border-danger rounded"
+                            className="border-2 border-danger px-3 py-1 text-danger hover:bg-danger hover:text-background font-bold shadow-[2px_2px_0px_0px_var(--danger)]"
                             aria-label="Delete current card"
                           >
                             Delete
@@ -824,10 +812,8 @@ function ClassNotes() {
                   </div>
 
                   {/* composer */}
-                  <div className="border-t border-border p-3 flex flex-col gap-2 text-xs">
-                    <div className="text-xs text-muted-foreground uppercase tracking-wider">
-                      New card
-                    </div>
+                  <div className="border-t-2 border-foreground p-3 flex flex-col gap-2 text-xs">
+                    <div className="text-xs font-bold uppercase tracking-wider">New card</div>
 
                     <div className="flex gap-2">
                       <input
@@ -835,9 +821,8 @@ function ClassNotes() {
                         onChange={(e) => setNewFront(e.target.value)}
                         placeholder="Front (question / term)"
                         aria-label="Card front"
-                        className="flex-1 bg-background border border-border px-2 py-1 outline-none focus:border-accent focus:ring-2 focus:ring-accent/40 rounded"
+                        className="flex-1 bg-background border-2 border-foreground px-2 py-1 outline-none"
                       />
-
                       <input
                         value={newBack}
                         onChange={(e) => setNewBack(e.target.value)}
@@ -846,23 +831,22 @@ function ClassNotes() {
                         }}
                         placeholder="Back (answer / definition)"
                         aria-label="Card back"
-                        className="flex-1 bg-background border border-border px-2 py-1 outline-none focus:border-accent focus:ring-2 focus:ring-accent/40 rounded"
+                        className="flex-1 bg-background border-2 border-foreground px-2 py-1 outline-none"
                       />
-
                       <button
                         type="button"
                         onClick={addCard}
                         disabled={!newFront.trim() || !newBack.trim()}
-                        className="border border-border px-3 py-1 hover:bg-muted disabled:opacity-40 disabled:cursor-not-allowed rounded"
+                        className="border-2 border-foreground px-3 py-1 hover:bg-foreground hover:text-background font-bold shadow-[2px_2px_0px_0px_var(--foreground)] disabled:opacity-40 disabled:cursor-not-allowed"
                       >
                         Add
                       </button>
                     </div>
                   </div>
                 </div>
+              ) : (
+                <DrawingCanvas roomId={activeId} canEdit={canEdit} />
               )}
-
-              {view === "draw" && <DrawingCanvas roomId={activeId} canEdit={canEdit} />}
             </main>
           </div>
         </>
@@ -894,21 +878,16 @@ function AddSubjectInline({
     }
 
     try {
-      // Get Firebase ID token for authentication
       const user = auth.currentUser;
       if (!user) {
-        throw new Error("Firebase auth not ready (no currentUser). Try again in a second.");
+        throw new Error("Auth not ready. Try again.");
       }
 
-      // Force refresh to avoid using an uninitialized/expired token during initial anonymous sign-in.
       const idToken = await getIdToken(user, true);
       if (!idToken) {
-        throw new Error("Firebase auth token not available. Try again in a second.");
+        throw new Error("Auth token not available. Try again.");
       }
 
-      // Call backend API to create room.
-      // Some first-click flows can race Firebase anonymous initialization;
-      // retry once on 401 by forcing a fresh token.
       const callCreateRoom = async (token: string) => {
         const response = await fetch(`${import.meta.env.VITE_API_BASE_URL ?? ""}/api/rooms`, {
           method: "POST",
@@ -934,7 +913,6 @@ function AddSubjectInline({
       } catch (err) {
         const status = (err as any)?.status;
         if (status === 401) {
-          // Force refresh and retry once
           const refreshedToken = await getIdToken(user, true);
           if (!refreshedToken) throw err;
           await callCreateRoom(refreshedToken);
@@ -944,7 +922,6 @@ function AddSubjectInline({
       }
 
       setValue("");
-
       setActiveId(roomId);
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
@@ -962,7 +939,7 @@ function AddSubjectInline({
           value={value}
           onChange={(e) => setValue(e.target.value)}
           placeholder="Subject id (e.g., biology)"
-          className="flex-1 bg-background border border-border px-2 py-1 outline-none focus:border-accent focus:ring-2 focus:ring-accent/40 rounded"
+          className="flex-1 bg-background border-2 border-foreground px-2 py-1 outline-none"
           aria-label="New subject id"
           onKeyDown={(e) => {
             if (e.key === "Enter") add();
@@ -971,13 +948,10 @@ function AddSubjectInline({
         <button
           type="button"
           onClick={add}
-          className="border border-border px-3 py-1 hover:bg-muted rounded"
+          className="border-2 border-foreground px-3 py-1 hover:bg-foreground hover:text-background font-bold shadow-[2px_2px_0px_0px_var(--foreground)]"
           aria-label="Add subject room"
         >
-          <span className="text-accent" aria-hidden>
-            {SUBJECTS_ADD_BUTTON_LABEL}
-          </span>
-          <span className="ml-2">Add</span>
+          + Add
         </button>
       </div>
 

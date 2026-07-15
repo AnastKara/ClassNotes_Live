@@ -1,11 +1,11 @@
-import { createFileRoute } from "@tanstack/react-router";
-import React, { useEffect, useMemo, useState } from "react";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { useEffect, useMemo, useState } from "react";
 import { collection, onSnapshot, query } from "firebase/firestore";
 import { db, auth } from "@/integrations/firebase/client";
-import { onAuthStateChanged, signInAnonymously } from "firebase/auth";
+import { onAuthStateChanged } from "firebase/auth";
 import { DrawApp } from "@/components/draw-app";
 
-export const Route = createFileRoute("/")({
+export const Route = createFileRoute("/draw")({
   component: DrawRoute,
   ssr: false,
 });
@@ -22,12 +22,27 @@ interface Room {
 const DEFAULT_ROOM_ID = "math";
 
 function DrawRoute() {
+  const navigate = useNavigate();
+  const [authReady, setAuthReady] = useState(false);
   const [role, setRole] = useState<Role>("student");
   const [activeId, setActiveId] = useState<string>(DEFAULT_ROOM_ID);
   const [rooms, setRooms] = useState<Record<string, Room>>({});
 
-  // Fetch role from backend profile (custom claims -> users/me profile)
+  // Auth guard
   useEffect(() => {
+    const unsub = onAuthStateChanged(auth, (user) => {
+      if (!user || user.isAnonymous) {
+        navigate({ to: "/login" });
+        return;
+      }
+      setAuthReady(true);
+    });
+    return () => unsub();
+  }, [navigate]);
+
+  // Fetch role from backend profile
+  useEffect(() => {
+    if (!authReady) return;
     let alive = true;
 
     async function syncRole() {
@@ -55,23 +70,10 @@ function DrawRoute() {
     return () => {
       alive = false;
     };
-  }, []);
-
-
-  useEffect(() => {
-    const unsub = onAuthStateChanged(auth, async (user) => {
-      if (!user) {
-        try {
-          await signInAnonymously(auth);
-        } catch (e) {
-          console.error("Failed to sign in anonymously:", e);
-        }
-      }
-    });
-    return () => unsub();
-  }, []);
+  }, [authReady]);
 
   useEffect(() => {
+    if (!authReady) return;
     let alive = true;
     const roomsRef = collection(db, "rooms");
     const q = query(roomsRef);
@@ -96,14 +98,15 @@ function DrawRoute() {
       alive = false;
       unsub();
     };
-  }, []);
+  }, [authReady]);
 
   const active = rooms[activeId];
   const roomLocked = !!active?.locked;
   const canEdit = role === "teacher" || !roomLocked;
 
-
   const roomId = useMemo(() => activeId, [activeId]);
+
+  if (!authReady) return null;
 
   return (
     <DrawApp
@@ -112,8 +115,7 @@ function DrawRoute() {
       activeId={activeId}
       role={role}
       onBackToClass={() => {
-        // Navigation: go home (ClassNotes container)
-        window.location.href = "/";
+        navigate({ to: "/" });
       }}
     />
   );

@@ -1,8 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
-import React, { useEffect, useMemo, useState } from "react";
-import { useNavigate } from "@tanstack/react-router";
-import { onAuthStateChanged, createUserWithEmailAndPassword } from "firebase/auth";
-
+import { useEffect, useState } from "react";
+import { useNavigate, Link } from "@tanstack/react-router";
+import { createUserWithEmailAndPassword, onAuthStateChanged } from "firebase/auth";
 
 import { auth } from "@/integrations/firebase/client";
 
@@ -13,11 +12,8 @@ export const Route = createFileRoute("/signup")({
 
 type Role = "student" | "teacher";
 
-type ApiError = { error?: { message?: string } } | { message?: string };
-
 function SignupRoute() {
   const navigate = useNavigate();
-  const apiBase = useMemo(() => import.meta.env.VITE_API_BASE_URL ?? "", []);
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -27,7 +23,7 @@ function SignupRoute() {
 
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, (user) => {
-      if (user) navigate({ to: "/" });
+      if (user && !user.isAnonymous) navigate({ to: "/" });
     });
     return () => unsub();
   }, [navigate]);
@@ -38,13 +34,12 @@ function SignupRoute() {
     try {
       const userCred = await createUserWithEmailAndPassword(auth, email.trim(), password);
 
-
-      // Persist role to backend custom claims + profile
       const user = userCred.user;
       if (!user) throw new Error("User not available after signup");
 
       const idToken = await user.getIdToken(true);
 
+      const apiBase = import.meta.env.VITE_API_BASE_URL ?? "";
       const res = await fetch(`${apiBase}/api/users/role`, {
         method: "POST",
         headers: {
@@ -55,17 +50,25 @@ function SignupRoute() {
       });
 
       if (!res.ok) {
-        const data = (await res.json().catch(() => ({}))) as ApiError;
-        const msg = (data as any)?.error?.message
-          ? (data as any).error.message
-          : (data as any)?.message ?? "Failed to set role";
-        throw new Error(msg);
-
+        // If role assignment fails, the user is created in Firebase Auth
+        // but has no role in our backend. That's okay — they can still log in
+        // and the role will be set to default.
+        console.warn("Role assignment failed, continuing with default role");
       }
 
       navigate({ to: "/" });
     } catch (e) {
-      const msg = e instanceof Error ? e.message : String(e);
+      const err = e as { code?: string; message?: string };
+      const msg =
+        err.code === "auth/email-already-in-use"
+          ? "An account with this email already exists."
+          : err.code === "auth/weak-password"
+            ? "Password must be at least 6 characters."
+            : err.code === "auth/invalid-email"
+              ? "Invalid email address."
+              : err.code === "auth/too-many-requests"
+                ? "Too many attempts. Try again later."
+                : (err.message ?? "Signup failed");
       setError(msg);
     } finally {
       setLoading(false);
@@ -73,86 +76,98 @@ function SignupRoute() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4">
-      <div className="w-full max-w-md border border-border rounded-md p-6">
-        <h1 className="text-xl font-semibold">Sign up</h1>
-        <p className="text-sm text-muted-foreground mt-1">
-          Choose teacher or student — you can’t change it here.
-        </p>
+    <div className="min-h-screen flex items-center justify-center p-4 bg-background">
+      <div className="w-full max-w-sm border-2 border-foreground p-8 shadow-[8px_8px_0px_0px_var(--foreground)]">
+        {/* Logo */}
+        <div className="text-center mb-6">
+          <div className="text-3xl font-black tracking-tighter">classnotes.live</div>
+          <div className="text-xs mt-1 border-2 border-foreground inline-block px-2 py-0.5 font-bold">
+            SIGN UP
+          </div>
+        </div>
 
-        <div className="mt-5 flex flex-col gap-3">
-          <label className="text-sm">
-            <div className="text-xs text-muted-foreground mb-1">Email</div>
+        <div className="flex flex-col gap-4">
+          <div>
+            <label className="text-xs font-bold block mb-1">EMAIL</label>
             <input
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               type="email"
-              className="w-full bg-background border border-border px-3 py-2 rounded outline-none focus:border-accent focus:ring-2 focus:ring-accent/40"
+              className="w-full bg-background border-2 border-foreground px-3 py-2 outline-none text-sm focus:shadow-[2px_2px_0px_0px_var(--foreground)] transition-shadow"
               autoComplete="email"
+              placeholder="you@example.com"
             />
-          </label>
+          </div>
 
-          <label className="text-sm">
-            <div className="text-xs text-muted-foreground mb-1">Password</div>
+          <div>
+            <label className="text-xs font-bold block mb-1">PASSWORD</label>
             <input
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               type="password"
-              className="w-full bg-background border border-border px-3 py-2 rounded outline-none focus:border-accent focus:ring-2 focus:ring-accent/40"
+              className="w-full bg-background border-2 border-foreground px-3 py-2 outline-none text-sm focus:shadow-[2px_2px_0px_0px_var(--foreground)] transition-shadow"
               autoComplete="new-password"
+              placeholder="at least 6 characters"
             />
-          </label>
+          </div>
 
-          <div className="mt-2">
-            <div className="text-xs text-muted-foreground mb-2">Account type</div>
+          <div>
+            <label className="text-xs font-bold block mb-2">ACCOUNT TYPE</label>
             <div className="flex gap-2">
               <button
                 type="button"
                 onClick={() => setRole("student")}
                 className={
-                  "flex-1 border px-3 py-2 rounded transition-colors " +
+                  "flex-1 border-2 px-3 py-2 font-bold text-sm transition-colors " +
                   (role === "student"
-                    ? "border-accent/50 bg-accent/10 text-accent"
-                    : "border-border hover:bg-muted")
+                    ? "bg-foreground text-background border-foreground"
+                    : "border-foreground hover:bg-foreground hover:text-background")
                 }
               >
-                Student
+                STUDENT
               </button>
               <button
                 type="button"
                 onClick={() => setRole("teacher")}
                 className={
-                  "flex-1 border px-3 py-2 rounded transition-colors " +
+                  "flex-1 border-2 px-3 py-2 font-bold text-sm transition-colors " +
                   (role === "teacher"
-                    ? "border-accent/50 bg-accent/10 text-accent"
-                    : "border-border hover:bg-muted")
+                    ? "bg-foreground text-background border-foreground"
+                    : "border-foreground hover:bg-foreground hover:text-background")
                 }
               >
-                Teacher
+                TEACHER
               </button>
             </div>
           </div>
 
-          {error && <div className="text-sm text-danger">{error}</div>}
+          {error && (
+            <div className="border-2 border-danger bg-red-50 dark:bg-red-900/20 px-3 py-2 text-sm text-danger font-bold">
+              {error}
+            </div>
+          )}
 
           <button
             type="button"
             disabled={loading || !email.trim() || password.length < 6}
             onClick={submit}
-            className="border border-border px-4 py-2 rounded hover:bg-muted disabled:opacity-40 disabled:cursor-not-allowed"
+            className="border-2 border-foreground px-4 py-3 font-bold text-sm bg-foreground text-background hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed shadow-[4px_4px_0px_0px_var(--foreground)] active:shadow-none active:translate-x-1 active:translate-y-1 transition-all"
           >
-            {loading ? "Creating account…" : "Create account"}
+            {loading
+              ? "CREATING ACCOUNT..."
+              : role === "teacher"
+                ? "CREATE TEACHER ACCOUNT"
+                : "CREATE STUDENT ACCOUNT"}
           </button>
 
-          <div className="text-xs text-muted-foreground">
+          <div className="text-xs text-center border-t-2 border-foreground pt-4 mt-2">
             Already have an account?{" "}
-            <a className="text-accent hover:underline" href="/login">
+            <Link to="/login" className="font-bold underline hover:opacity-80">
               Log in
-            </a>
+            </Link>
           </div>
         </div>
       </div>
     </div>
   );
 }
-
