@@ -32,22 +32,26 @@ export function getFirebaseAdminApp(): App {
 
   try {
     const serviceAccount = JSON.parse(readFileSync(serviceAccountPath, "utf8"));
-    _app = admin.apps.length ? admin.apps[0]! : admin.initializeApp({
-      credential: admin.credential.cert(serviceAccount),
-    });
+    _app = admin.apps.length
+      ? admin.apps[0]!
+      : admin.initializeApp({
+          credential: admin.credential.cert(serviceAccount),
+        });
   } catch (e) {
     // Fallback to environment variables
     const projectId = requireEnv("FIREBASE_PROJECT_ID");
     const clientEmail = requireEnv("FIREBASE_CLIENT_EMAIL");
     const privateKey = formatPrivateKey(requireEnv("FIREBASE_PRIVATE_KEY"));
 
-    _app = admin.apps.length ? admin.apps[0]! : admin.initializeApp({
-      credential: admin.credential.cert({
-        projectId,
-        clientEmail,
-        privateKey,
-      }),
-    });
+    _app = admin.apps.length
+      ? admin.apps[0]!
+      : admin.initializeApp({
+          credential: admin.credential.cert({
+            projectId,
+            clientEmail,
+            privateKey,
+          }),
+        });
   }
 
   return _app!;

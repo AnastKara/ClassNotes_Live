@@ -27,7 +27,7 @@ export async function ordersRoutes(app: FastifyInstance) {
       preHandler: requireAuth as any,
     },
     async (req: AuthedReq) => {
-      const { id } = (req.params as any) as { id: string };
+      const { id } = req.params as any as { id: string };
       const order = await orderService.getOrder(id, req.user!.userId);
       return { order: buildOrderDto(order) };
     },
@@ -46,7 +46,7 @@ export async function ordersRoutes(app: FastifyInstance) {
         productId,
         productTitle,
         amount,
-        currency
+        currency,
       );
       return { order: buildOrderDto(created) };
     },

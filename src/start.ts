@@ -27,8 +27,10 @@ if (typeof window !== "undefined") {
 
   // Also suppress window errors from Chrome extensions
   window.addEventListener("error", (event) => {
-    if (event.message?.includes("No Listener: tabs:outgoing.message.ready") || 
-        (event.error && event.error.toString().includes("No Listener: tabs:outgoing.message.ready"))) {
+    if (
+      event.message?.includes("No Listener: tabs:outgoing.message.ready") ||
+      (event.error && event.error.toString().includes("No Listener: tabs:outgoing.message.ready"))
+    ) {
       event.preventDefault();
     }
   });
@@ -57,15 +59,14 @@ try {
   if (!el) throw new Error("Missing #root element");
 
   ReactDOM.createRoot(el).render(
-    React.createElement(
-      React.StrictMode,
-      null,
-      React.createElement(App, null),
-    ),
+    React.createElement(React.StrictMode, null, React.createElement(App, null)),
   );
 } catch (error) {
   // Ignore Chrome extension errors
-  if (error instanceof Error && error.message.includes("No Listener: tabs:outgoing.message.ready")) {
+  if (
+    error instanceof Error &&
+    error.message.includes("No Listener: tabs:outgoing.message.ready")
+  ) {
     // Silently ignore
   } else {
     throw error;

@@ -22,13 +22,15 @@ export function getFirebaseAdminApp(): App {
   const privateKey = formatPrivateKey(requireEnv("FIREBASE_PRIVATE_KEY"));
 
   // Ensure we don't re-initialize in dev/hot reload.
-  _app = apps.length ? apps[0]! : initializeApp({
-    credential: credential.cert({
-      projectId,
-      clientEmail,
-      privateKey,
-    }),
-  });
+  _app = apps.length
+    ? apps[0]!
+    : initializeApp({
+        credential: credential.cert({
+          projectId,
+          clientEmail,
+          privateKey,
+        }),
+      });
 
   return _app;
 }
@@ -37,4 +39,3 @@ export function getFirestoreAdmin() {
   const app = getFirebaseAdminApp();
   return firestore(app);
 }
-

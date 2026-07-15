@@ -27,7 +27,7 @@ export class FlashcardService {
       .where("room_id", "==", roomId)
       .orderBy("created_at", "asc")
       .get();
-    
+
     return snapshot.docs.map((doc) => ({
       id: doc.id,
       ...(doc.data() as FlashcardCreateData),
@@ -52,7 +52,7 @@ export class FlashcardService {
   async deleteFlashcard(cardId: string, _userId: string) {
     const docRef = this.db().collection(FLASHCARDS_COLLECTION).doc(cardId);
     const doc = await docRef.get();
-    
+
     if (!doc.exists) {
       throw new HttpError(404, "Flashcard not found");
     }

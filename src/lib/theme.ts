@@ -18,7 +18,9 @@ export function initTheme(): ThemeMode {
   const stored = getStoredTheme();
   const mode: ThemeMode =
     stored ??
-    (window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+    (window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches
+      ? "dark"
+      : "light");
 
   applyTheme(mode);
   return mode;
@@ -28,4 +30,3 @@ export function setTheme(mode: ThemeMode) {
   localStorage.setItem(LS_KEY, mode);
   applyTheme(mode);
 }
-

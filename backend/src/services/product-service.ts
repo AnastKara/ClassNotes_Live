@@ -11,11 +11,11 @@ export class ProductService {
 
   async listProducts(publishedOnly = true) {
     let query: Query = this.db().collection(PRODUCTS_COLLECTION);
-    
+
     if (publishedOnly) {
       query = query.where("published", "==", true);
     }
-    
+
     const snapshot = await query.get();
     return snapshot.docs.map((doc) => ({
       id: doc.id,
@@ -25,11 +25,11 @@ export class ProductService {
 
   async getProduct(productId: string) {
     const doc = await this.db().collection(PRODUCTS_COLLECTION).doc(productId).get();
-    
+
     if (!doc.exists) {
       throw new HttpError(404, "Product not found");
     }
-    
+
     return {
       id: doc.id,
       ...doc.data(),
@@ -43,7 +43,7 @@ export class ProductService {
     price: number,
     currency: string,
     authorId: string,
-    tags: string[] = []
+    tags: string[] = [],
   ) {
     const docRef = await this.db().collection(PRODUCTS_COLLECTION).add({
       title,
@@ -73,11 +73,11 @@ export class ProductService {
       price: number;
       published: boolean;
       tags: string[];
-    }>
+    }>,
   ) {
     const docRef = this.db().collection(PRODUCTS_COLLECTION).doc(productId);
     const doc = await docRef.get();
-    
+
     if (!doc.exists) {
       throw new HttpError(404, "Product not found");
     }
@@ -97,7 +97,7 @@ export class ProductService {
   async deleteProduct(productId: string) {
     const docRef = this.db().collection(PRODUCTS_COLLECTION).doc(productId);
     const doc = await docRef.get();
-    
+
     if (!doc.exists) {
       throw new HttpError(404, "Product not found");
     }

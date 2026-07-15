@@ -10,7 +10,6 @@ export const Route = createFileRoute("/")({
   ssr: false,
 });
 
-
 type Role = "student" | "teacher";
 
 interface Room {
@@ -27,14 +26,37 @@ function DrawRoute() {
   const [activeId, setActiveId] = useState<string>(DEFAULT_ROOM_ID);
   const [rooms, setRooms] = useState<Record<string, Room>>({});
 
+  // Fetch role from backend profile (custom claims -> users/me profile)
   useEffect(() => {
-    const r = localStorage.getItem("cn.role") as Role | null;
-    if (r === "teacher" || r === "student") setRole(r);
+    let alive = true;
+
+    async function syncRole() {
+      try {
+        const tokenUser = auth.currentUser;
+        if (!tokenUser) return;
+
+        const idToken = await tokenUser.getIdToken(true);
+        const res = await fetch(`${import.meta.env.VITE_API_BASE_URL ?? ""}/api/users/me`, {
+          headers: { Authorization: `Bearer ${idToken}` },
+        });
+
+        if (!res.ok) return;
+        const data = (await res.json().catch(() => ({}))) as any;
+        const nextRole = data?.user?.role;
+        if (alive && (nextRole === "teacher" || nextRole === "student")) {
+          setRole(nextRole);
+        }
+      } catch {
+        // ignore
+      }
+    }
+
+    void syncRole();
+    return () => {
+      alive = false;
+    };
   }, []);
 
-  useEffect(() => {
-    localStorage.setItem("cn.role", role);
-  }, [role]);
 
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, async (user) => {
@@ -80,6 +102,7 @@ function DrawRoute() {
   const roomLocked = !!active?.locked;
   const canEdit = role === "teacher" || !roomLocked;
 
+
   const roomId = useMemo(() => activeId, [activeId]);
 
   return (
@@ -95,4 +118,3 @@ function DrawRoute() {
     />
   );
 }
-

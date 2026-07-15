@@ -2,7 +2,6 @@ import React, { useEffect, useMemo } from "react";
 import { DrawingCanvas } from "./drawing-canvas";
 export type Role = "student" | "teacher";
 
-
 export function DrawApp({
   roomId,
   canEdit,
@@ -52,4 +51,3 @@ export function DrawApp({
     </div>
   );
 }
-

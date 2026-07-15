@@ -25,7 +25,7 @@ async function seedRooms() {
   for (const room of rooms) {
     const roomRef = doc(db, "rooms", room.id);
     const docSnap = await getDoc(roomRef);
-    
+
     if (!docSnap.exists()) {
       await setDoc(roomRef, {
         name: room.name,

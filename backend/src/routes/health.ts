@@ -5,4 +5,3 @@ export const healthRoute: any = function (app: FastifyInstance) {
     return { ok: true };
   });
 };
-

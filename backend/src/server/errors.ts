@@ -40,4 +40,3 @@ export function sendError(reply: FastifyReply, statusCode: number, message: stri
 }
 
 export type AuthedRequest = FastifyRequest & { user?: { userId: string; claims?: unknown } };
-

@@ -8,9 +8,7 @@ export type AuthedUser = {
   role?: string;
 };
 
-export async function requireAuth(
-  req: FastifyRequest & { user?: AuthedUser },
-) {
+export async function requireAuth(req: FastifyRequest & { user?: AuthedUser }) {
   const auth = req.headers.authorization;
   if (!auth || !auth.startsWith("Bearer ")) {
     throw new HttpError(401, "Unauthorized");
@@ -34,4 +32,3 @@ export async function requireAuth(
     throw new HttpError(401, "Unauthorized");
   }
 }
-

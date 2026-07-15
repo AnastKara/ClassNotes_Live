@@ -12,13 +12,12 @@ export default defineConfig({
     rollupOptions: {
       output: {
         assetFileNames: (assetInfo) => {
-          if (assetInfo.name?.endsWith('.css')) {
-            return 'assets/[name]-[hash][extname]';
+          if (assetInfo.name?.endsWith(".css")) {
+            return "assets/[name]-[hash][extname]";
           }
-          return 'assets/[name]-[hash][extname]';
+          return "assets/[name]-[hash][extname]";
         },
       },
     },
   },
 });
-

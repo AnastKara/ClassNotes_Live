@@ -1,6 +1,16 @@
 import { createFileRoute } from "@tanstack/react-router";
 import React, { useEffect, useRef, useState, useCallback } from "react";
-import { collection, query, where, orderBy, onSnapshot, doc, updateDoc, deleteDoc, addDoc } from "firebase/firestore";
+import {
+  collection,
+  query,
+  where,
+  orderBy,
+  onSnapshot,
+  doc,
+  updateDoc,
+  deleteDoc,
+  addDoc,
+} from "firebase/firestore";
 import { db, auth } from "@/integrations/firebase/client";
 import { onAuthStateChanged, signInAnonymously, getIdToken } from "firebase/auth";
 import { DrawingCanvas } from "@/components/drawing-canvas";
@@ -9,8 +19,6 @@ export const Route = createFileRoute("/")({
   component: ClassNotes,
   ssr: false,
 });
-
-
 
 interface Room {
   id: string;
@@ -26,7 +34,6 @@ export type Role = "student" | "teacher";
 type View = "notes" | "cards" | "draw";
 
 type CardsMode = "study" | "quiz";
-
 
 // Microsoft Notes-inspired colorful palette
 const SUBJECT_COLORS: Record<string, { bg: string; text: string }> = {
@@ -89,8 +96,7 @@ function ClassNotes() {
   const [quizCorrectCount, setQuizCorrectCount] = useState(0);
   const [quizTotalCount, setQuizTotalCount] = useState(0);
 
-  const normalizeQuizAnswer = (s: string) =>
-    s.trim().toLowerCase().replace(/\s+/g, " ");
+  const normalizeQuizAnswer = (s: string) => s.trim().toLowerCase().replace(/\s+/g, " ");
 
   const isQuizCorrect = (expected: string, actual: string) => {
     const e = normalizeQuizAnswer(expected);
@@ -104,13 +110,37 @@ function ClassNotes() {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const skipNextEcho = useRef<Record<string, string>>({});
 
-  // saved role
+  // Fetch role from backend profile (custom claims -> users/me profile)
   useEffect(() => {
-    const r = localStorage.getItem("cn.role") as Role | null;
-    if (r === "teacher" || r === "student") setRole(r);
+    let alive = true;
+
+    async function syncRole() {
+      try {
+        const tokenUser = auth.currentUser;
+        if (!tokenUser) return;
+
+        const idToken = await tokenUser.getIdToken(true);
+        const res = await fetch(`${import.meta.env.VITE_API_BASE_URL ?? ""}/api/users/me`, {
+          headers: { Authorization: `Bearer ${idToken}` },
+        });
+
+        if (!res.ok) return;
+        const data = (await res.json().catch(() => ({}))) as any;
+        const nextRole = data?.user?.role;
+        if (alive && (nextRole === "teacher" || nextRole === "student")) setRole(nextRole);
+      } catch {
+        // ignore
+      }
+    }
+
+    void syncRole();
+    return () => {
+      alive = false;
+    };
   }, []);
 
   // Firebase env validation: prevent blank screen when env vars are missing
+
   useEffect(() => {
     try {
       // accessing db triggers env-var validation in src/integrations/firebase/client.ts
@@ -120,9 +150,6 @@ function ClassNotes() {
     }
   }, []);
 
-  useEffect(() => {
-    localStorage.setItem("cn.role", role);
-  }, [role]);
 
   // Anonymous authentication for presence tracking
   useEffect(() => {
@@ -142,7 +169,7 @@ function ClassNotes() {
   // initial fetch + realtime subscription for rooms
   useEffect(() => {
     let alive = true;
-    
+
     const roomsRef = collection(db, "rooms");
     const unsubscribe = onSnapshot(
       roomsRef,
@@ -174,7 +201,7 @@ function ClassNotes() {
       (error) => {
         console.error("Rooms subscription error:", error);
         setStatus("offline");
-      }
+      },
     );
 
     return () => {
@@ -187,14 +214,13 @@ function ClassNotes() {
   const roomLocked = !!active?.locked;
   const canEdit = role === "teacher" || !roomLocked;
 
-
   const pushContent = useCallback(async (id: string, content: string) => {
     skipNextEcho.current[id] = content;
     try {
       const roomRef = doc(db, "rooms", id);
-      await updateDoc(roomRef, { 
-        content, 
-        updated_at: new Date().toISOString() 
+      await updateDoc(roomRef, {
+        content,
+        updated_at: new Date().toISOString(),
       });
       setStatus("live");
     } catch (error) {
@@ -230,23 +256,23 @@ function ClassNotes() {
   useEffect(() => {
     setCardIdx(0);
     setFlipped(false);
-    
+
     const flashcardsRef = collection(db, "flashcards");
-    const q = query(
-      flashcardsRef,
-      where("room_id", "==", activeId),
-      orderBy("created_at", "asc")
+    const q = query(flashcardsRef, where("room_id", "==", activeId), orderBy("created_at", "asc"));
+
+    const unsubscribe = onSnapshot(
+      q,
+      (snapshot) => {
+        const newCards = snapshot.docs.map((doc) => ({
+          id: doc.id,
+          ...doc.data(),
+        })) as Flashcard[];
+        setCards(newCards);
+      },
+      (error) => {
+        console.error("Flashcards subscription error:", error);
+      },
     );
-    
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const newCards = snapshot.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
-      })) as Flashcard[];
-      setCards(newCards);
-    }, (error) => {
-      console.error("Flashcards subscription error:", error);
-    });
 
     return () => unsubscribe();
   }, [activeId]);
@@ -282,18 +308,15 @@ function ClassNotes() {
   const wordCount = active ? active.content.trim().split(/\s+/).filter(Boolean).length : 0;
   const lineCount = active ? active.content.split("\n").length : 0;
   const currentCard = cards[cardIdx];
-  
+
   // Get color for current card based on index
-  const cardColorKey = Object.keys(CARD_BG_COLORS)[cardIdx % Object.keys(CARD_BG_COLORS).length] || "blue";
+  const cardColorKey =
+    Object.keys(CARD_BG_COLORS)[cardIdx % Object.keys(CARD_BG_COLORS).length] || "blue";
   const cardColor = CARD_BG_COLORS[cardColorKey];
   const cardTextColor = CARD_TEXT_COLORS[cardColorKey];
 
   const statusText =
-    status === "live"
-      ? "Connected"
-      : status === "connecting"
-        ? "Connecting…"
-        : "Offline";
+    status === "live" ? "Connected" : status === "connecting" ? "Connecting…" : "Offline";
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -311,7 +334,7 @@ function ClassNotes() {
       {!initError && (
         <>
           {/* top bar */}
-              <header className="flex items-center justify-between border-b border-border px-4 h-10 text-sm">
+          <header className="flex items-center justify-between border-b border-border px-4 h-10 text-sm">
             <div className="flex items-center gap-3">
               <span className="text-accent" aria-hidden>
                 ●
@@ -328,7 +351,8 @@ function ClassNotes() {
                 type="button"
                 className="border border-border px-3 py-0.5 hover:bg-muted transition-colors rounded"
                 onClick={() => {
-                  const current = document.documentElement.dataset.theme === "dark" ? "dark" : "light";
+                  const current =
+                    document.documentElement.dataset.theme === "dark" ? "dark" : "light";
                   const next = current === "dark" ? "light" : "dark";
                   localStorage.setItem("cn.theme", next);
                   document.documentElement.dataset.theme = next;
@@ -339,14 +363,10 @@ function ClassNotes() {
                 theme: {document.documentElement.dataset.theme === "dark" ? "dark" : "light"}
               </button>
 
-              <button
-                type="button"
-                onClick={() => setRole(role === "teacher" ? "student" : "teacher")}
-                className="border border-border px-3 py-0.5 hover:bg-muted transition-colors rounded"
-                aria-label="Switch between teacher and student view"
-              >
+              <div className="border border-border px-3 py-0.5 rounded bg-background" aria-label="Current role">
                 role: {role}
-              </button>
+              </div>
+
             </div>
           </header>
 
@@ -406,18 +426,19 @@ function ClassNotes() {
                             : "text-muted-foreground hover:text-foreground")
                         }
                         style={{
-                          backgroundColor: isActive ? color.bg.replace("oklch", "oklch").replace("0.65", "0.15") : "transparent",
+                          backgroundColor: isActive
+                            ? color.bg.replace("oklch", "oklch").replace("0.65", "0.15")
+                            : "transparent",
                         }}
                         aria-current={isActive ? "page" : undefined}
                       >
                         <span className="flex items-center gap-2">
-                          <span
-                            style={{ color: color.text }}
-                            aria-hidden
-                          >
+                          <span style={{ color: color.text }} aria-hidden>
                             {isActive ? ">" : " "}
                           </span>
-                          <span className={"truncate " + (isActive ? "text-white" : "text-black")}>{id}</span>
+                          <span className={"truncate " + (isActive ? "text-white" : "text-black")}>
+                            {id}
+                          </span>
                         </span>
                         {r?.locked && (
                           <span className="text-danger text-xs font-medium bg-danger/10 px-2 py-0.5 rounded">
@@ -444,7 +465,7 @@ function ClassNotes() {
                   <span className="flex items-center gap-2 flex-wrap">
                     <span className="text-foreground font-medium">{activeId}</span>
                     <span className="text-muted-foreground" aria-hidden>
-                      / 
+                      /
                     </span>
 
                     <button
@@ -481,7 +502,6 @@ function ClassNotes() {
                       ·
                     </span>
 
-
                     <button
                       type="button"
                       onClick={() => setView("draw")}
@@ -503,7 +523,7 @@ function ClassNotes() {
                   )}
                 </div>
 
-{view === "notes" && role === "teacher" && (
+                {view === "notes" && role === "teacher" && (
                   <button
                     type="button"
                     onClick={toggleLock}
@@ -519,10 +539,9 @@ function ClassNotes() {
                 )}
               </div>
 
-      {view === "notes" ? (
+              {view === "notes" ? (
                 <>
                   <div className="flex-1 min-h-0 relative">
-
                     <textarea
                       ref={textareaRef}
                       value={active?.content ?? ""}
@@ -550,12 +569,9 @@ function ClassNotes() {
 
                   <footer className="border-t border-border px-4 h-7 flex items-center justify-between text-xs text-muted-foreground">
                     <div>
-                      {lineCount} lines · {wordCount} words ·{" "}
-                      {active?.content.length ?? 0} chars
+                      {lineCount} lines · {wordCount} words · {active?.content.length ?? 0} chars
                     </div>
-                    <div>
-                      utf-8 · md · {status === "live" ? "saved" : "pending"}
-                    </div>
+                    <div>utf-8 · md · {status === "live" ? "saved" : "pending"}</div>
                   </footer>
                 </>
               ) : (
@@ -641,7 +657,10 @@ function ClassNotes() {
                           className="w-full min-h-[180px] border border-border p-6 rounded focus:outline-none"
                           style={{ backgroundColor: cardColor }}
                         >
-                          <div className="text-xs uppercase tracking-wider" style={{ color: cardTextColor }}>
+                          <div
+                            className="text-xs uppercase tracking-wider"
+                            style={{ color: cardTextColor }}
+                          >
                             Question
                           </div>
                           <div className="text-lg leading-snug whitespace-pre-wrap mt-2">
@@ -749,7 +768,10 @@ function ClassNotes() {
                           aria-label={flipped ? "Hide answer" : "Show answer"}
                           style={{ backgroundColor: cardColor }}
                         >
-                          <div className="text-xs uppercase tracking-wider" style={{ color: cardTextColor }}>
+                          <div
+                            className="text-xs uppercase tracking-wider"
+                            style={{ color: cardTextColor }}
+                          >
                             {flipped ? "Answer" : "Question"}
                           </div>
                           <div className="text-lg leading-snug whitespace-pre-wrap">
@@ -800,7 +822,6 @@ function ClassNotes() {
                       </div>
                     )}
                   </div>
-
 
                   {/* composer */}
                   <div className="border-t border-border p-3 flex flex-col gap-2 text-xs">
@@ -893,7 +914,7 @@ function AddSubjectInline({
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            "Authorization": `Bearer ${token}`,
+            Authorization: `Bearer ${token}`,
           },
           body: JSON.stringify({ id: roomId }),
         });
@@ -901,9 +922,7 @@ function AddSubjectInline({
         if (!response.ok) {
           const errorData = await response.json().catch(() => ({}));
           const backendMessage =
-            errorData?.error?.message ??
-            errorData?.message ??
-            JSON.stringify(errorData);
+            errorData?.error?.message ?? errorData?.message ?? JSON.stringify(errorData);
           const err = new Error(backendMessage || "Failed to create room");
           (err as any).status = response.status;
           throw err;

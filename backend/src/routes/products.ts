@@ -7,23 +7,17 @@ export async function productsRoutes(app: FastifyInstance) {
   const productService = new ProductService();
 
   // Public: List published products
-  app.get(
-    "/products",
-    async () => {
-      const products = await productService.listProducts(true);
-      return { products: products.map(buildProductDto) };
-    },
-  );
+  app.get("/products", async () => {
+    const products = await productService.listProducts(true);
+    return { products: products.map(buildProductDto) };
+  });
 
   // Public: Get a specific product
-  app.get(
-    "/products/:id",
-    async (req) => {
-      const { id } = (req.params as any) as { id: string };
-      const product = await productService.getProduct(id);
-      return { product: buildProductDto(product) };
-    },
-  );
+  app.get("/products/:id", async (req) => {
+    const { id } = req.params as any as { id: string };
+    const product = await productService.getProduct(id);
+    return { product: buildProductDto(product) };
+  });
 
   // Admin: Create product
   app.post(
@@ -33,7 +27,7 @@ export async function productsRoutes(app: FastifyInstance) {
     },
     async (req) => {
       const { title, description, type, price, currency, authorId, tags } = req.body as any;
-      
+
       // TODO: Add admin role check
       const created = await productService.createProduct(
         title,
@@ -42,7 +36,7 @@ export async function productsRoutes(app: FastifyInstance) {
         price,
         currency,
         authorId,
-        tags
+        tags,
       );
       return { product: buildProductDto(created) };
     },
@@ -55,9 +49,9 @@ export async function productsRoutes(app: FastifyInstance) {
       preHandler: requireAuth as any,
     },
     async (req) => {
-      const { id } = (req.params as any) as { id: string };
+      const { id } = req.params as any as { id: string };
       const updates = req.body as any;
-      
+
       // TODO: Add admin role check
       const updated = await productService.updateProduct(id, updates);
       return { product: buildProductDto(updated) };
@@ -71,8 +65,8 @@ export async function productsRoutes(app: FastifyInstance) {
       preHandler: requireAuth as any,
     },
     async (req) => {
-      const { id } = (req.params as any) as { id: string };
-      
+      const { id } = req.params as any as { id: string };
+
       // TODO: Add admin role check
       await productService.deleteProduct(id);
       return { ok: true };

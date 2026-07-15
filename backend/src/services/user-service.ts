@@ -15,7 +15,7 @@ export class UserService {
 
   async getUserProfile(uid: string) {
     const doc = await this.db().collection(USERS_COLLECTION).doc(uid).get();
-    
+
     if (!doc.exists) {
       // Create user profile if it doesn't exist
       const userRecord = await this.auth().getUser(uid);
@@ -27,7 +27,7 @@ export class UserService {
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       };
-      
+
       await this.db().collection(USERS_COLLECTION).doc(uid).set(newProfile);
       return { id: uid, ...newProfile };
     }
@@ -43,11 +43,11 @@ export class UserService {
     updates: Partial<{
       display_name: string;
       role: "admin" | "user" | "student" | "teacher";
-    }>
+    }>,
   ) {
     const docRef = this.db().collection(USERS_COLLECTION).doc(uid);
     const doc = await docRef.get();
-    
+
     if (!doc.exists) {
       throw new HttpError(404, "User profile not found");
     }
@@ -67,7 +67,7 @@ export class UserService {
   async setUserRole(uid: string, role: "admin" | "user" | "student" | "teacher") {
     // Set custom claims
     await this.auth().setCustomUserClaims(uid, { role });
-    
+
     // Update user profile
     const docRef = this.db().collection(USERS_COLLECTION).doc(uid);
     await docRef.set(
@@ -75,7 +75,7 @@ export class UserService {
         role,
         updated_at: new Date().toISOString(),
       },
-      { merge: true }
+      { merge: true },
     );
 
     return { uid, role };

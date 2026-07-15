@@ -17,9 +17,8 @@ export async function flashcardsRoutes(app: FastifyInstance) {
       // Temporarily disable schema validation due to Fastify/Zod schema conversion issues.
     },
 
-
     async (req) => {
-      const { roomId } = (req.params as any) as { roomId: string };
+      const { roomId } = req.params as any as { roomId: string };
       const flashcards = await flashcardService.listFlashcards(roomId);
       return { flashcards: flashcards.map(buildFlashcardDto) };
     },
@@ -33,9 +32,14 @@ export async function flashcardsRoutes(app: FastifyInstance) {
     },
 
     async (req) => {
-      const { roomId } = (req.params as any) as { roomId: string };
+      const { roomId } = req.params as any as { roomId: string };
       const { front, back } = req.body as any;
-      const created = await flashcardService.createFlashcard(roomId, front, back, (req as any).user!.userId);
+      const created = await flashcardService.createFlashcard(
+        roomId,
+        front,
+        back,
+        (req as any).user!.userId,
+      );
       return { flashcard: buildFlashcardDto(created) };
     },
   );
@@ -48,10 +52,9 @@ export async function flashcardsRoutes(app: FastifyInstance) {
     },
 
     async (req) => {
-      const { id } = (req.params as any) as { id: string };
+      const { id } = req.params as any as { id: string };
       await flashcardService.deleteFlashcard(id, (req as any).user!.userId);
       return { ok: true };
     },
   );
 }
-

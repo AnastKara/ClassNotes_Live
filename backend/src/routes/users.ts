@@ -32,4 +32,24 @@ export async function usersRoutes(app: FastifyInstance) {
       return { user: buildUserProfileDto(updated) };
     },
   );
+
+  // Set auth role (teacher / student) for the current user
+  app.post(
+    "/users/role",
+    {
+      preHandler: requireAuth as any,
+    },
+    async (req: AuthedReq) => {
+      const body = req.body as any;
+      const role = body?.role as "teacher" | "student" | undefined;
+
+      if (role !== "teacher" && role !== "student") {
+        throw new (await import("../server/errors.js")).HttpError(400, "Invalid role");
+      }
+
+      const result = await userService.setUserRole(req.user!.userId, role);
+      return { user: result };
+    },
+  );
 }
+

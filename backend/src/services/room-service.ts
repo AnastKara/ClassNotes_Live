@@ -45,7 +45,7 @@ export class RoomService {
   async updateRoomContent(roomId: string, content: string) {
     const roomRef = this.db().collection(ROOMS_COLLECTION).doc(roomId);
     const doc = await roomRef.get();
-    
+
     if (!doc.exists) {
       throw new HttpError(404, "Room not found");
     }
@@ -67,7 +67,7 @@ export class RoomService {
     // For production, implement proper role lookup.
     const roomRef = this.db().collection(ROOMS_COLLECTION).doc(roomId);
     const doc = await roomRef.get();
-    
+
     if (!doc.exists) {
       throw new HttpError(404, "Room not found");
     }

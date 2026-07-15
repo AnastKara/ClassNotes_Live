@@ -6,7 +6,6 @@ import { RoomService } from "../services/room-service";
 import { buildRoomDto } from "../services/dto.js";
 
 export async function roomsRoutes(app: FastifyInstance) {
-
   const roomService = new RoomService();
 
   // Note: fastify requires a schema format compatible with its validator.
@@ -30,7 +29,7 @@ export async function roomsRoutes(app: FastifyInstance) {
       // We'll re-enable with Fastify-compatible JSON schemas.
     },
     async (req) => {
-      const { id } = (req.params as any) as { id: string };
+      const { id } = req.params as any as { id: string };
       const content = (req.body as any)?.content;
       if (typeof content !== "string") {
         return { room: buildRoomDto(await roomService.updateRoomContent(id, "")) };
@@ -40,8 +39,7 @@ export async function roomsRoutes(app: FastifyInstance) {
     },
   );
 
-
-app.patch(
+  app.patch(
     "/rooms/:id/lock",
     {
       preHandler: requireAuth as any,
@@ -49,7 +47,7 @@ app.patch(
     },
 
     async (req) => {
-      const { id } = (req.params as any) as { id: string };
+      const { id } = req.params as any as { id: string };
       const { locked } = req.body as any;
       const updated = await roomService.setRoomLock(id, locked, (req as any).user!.userId);
       return { room: buildRoomDto(updated) };
@@ -71,5 +69,3 @@ app.patch(
     },
   );
 }
-
-

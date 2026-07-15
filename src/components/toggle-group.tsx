@@ -25,7 +25,9 @@ const ToggleGroup = React.forwardRef<
 
   return (
     <ToggleGroupPrimitive.Root ref={ref} {...rootProps}>
-      <ToggleGroupContext.Provider value={{ variant, size }}>{children}</ToggleGroupContext.Provider>
+      <ToggleGroupContext.Provider value={{ variant, size }}>
+        {children}
+      </ToggleGroupContext.Provider>
     </ToggleGroupPrimitive.Root>
   );
 });

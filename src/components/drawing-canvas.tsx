@@ -100,7 +100,7 @@ export function DrawingCanvas({ roomId, canEdit }: DrawingCanvasProps) {
       ctx.lineWidth = stroke.width;
       ctx.lineCap = "round";
       ctx.lineJoin = "round";
-      
+
       ctx.moveTo(stroke.points[0], stroke.points[1]);
       for (let i = 2; i < stroke.points.length; i += 2) {
         ctx.lineTo(stroke.points[i], stroke.points[i + 1]);
@@ -109,65 +109,74 @@ export function DrawingCanvas({ roomId, canEdit }: DrawingCanvasProps) {
     });
   }, [strokes]);
 
-  const getPointerPos = useCallback((e: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>) => {
-    const canvas = canvasRef.current;
-    if (!canvas) return { x: 0, y: 0 };
-    
-    const rect = canvas.getBoundingClientRect();
-    let x: number, y: number;
-    
-    if ("touches" in e) {
-      x = e.touches[0].clientX;
-      y = e.touches[0].clientY;
-    } else {
-      x = e.clientX;
-      y = e.clientY;
-    }
-    
-    return {
-      x: (x - rect.left) * (canvas.width / rect.width),
-      y: (y - rect.top) * (canvas.height / rect.height),
-    };
-  }, []);
+  const getPointerPos = useCallback(
+    (e: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>) => {
+      const canvas = canvasRef.current;
+      if (!canvas) return { x: 0, y: 0 };
 
-  const handlePointerDown = useCallback((e: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>) => {
-    if (!canEdit) return;
+      const rect = canvas.getBoundingClientRect();
+      let x: number, y: number;
 
-    const pos = getPointerPos(e);
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
+      if ("touches" in e) {
+        x = e.touches[0].clientX;
+        y = e.touches[0].clientY;
+      } else {
+        x = e.clientX;
+        y = e.clientY;
+      }
 
-    ctx.beginPath();
-    ctx.moveTo(pos.x, pos.y);
-    ctx.strokeStyle = tool === "eraser" ? "rgba(0,0,0,0)" : currentColor;
-    ctx.lineWidth = currentWidth;
-    ctx.lineCap = "round";
-    ctx.lineJoin = "round";
-    
-    currentPointsRef.current = [pos.x, pos.y];
-    setIsDrawing(true);
-  }, [canEdit, getPointerPos, currentColor, currentWidth]);
+      return {
+        x: (x - rect.left) * (canvas.width / rect.width),
+        y: (y - rect.top) * (canvas.height / rect.height),
+      };
+    },
+    [],
+  );
 
-  const handlePointerMove = useCallback((e: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>) => {
-    if (!isDrawing || !canEdit) return;
-    
-    const pos = getPointerPos(e);
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
+  const handlePointerDown = useCallback(
+    (e: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>) => {
+      if (!canEdit) return;
 
-    ctx.lineTo(pos.x, pos.y);
-    ctx.stroke();
-    
-    currentPointsRef.current.push(pos.x, pos.y);
-  }, [isDrawing, canEdit, getPointerPos]);
+      const pos = getPointerPos(e);
+      const canvas = canvasRef.current;
+      if (!canvas) return;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) return;
+
+      ctx.beginPath();
+      ctx.moveTo(pos.x, pos.y);
+      ctx.strokeStyle = tool === "eraser" ? "rgba(0,0,0,0)" : currentColor;
+      ctx.lineWidth = currentWidth;
+      ctx.lineCap = "round";
+      ctx.lineJoin = "round";
+
+      currentPointsRef.current = [pos.x, pos.y];
+      setIsDrawing(true);
+    },
+    [canEdit, getPointerPos, currentColor, currentWidth],
+  );
+
+  const handlePointerMove = useCallback(
+    (e: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>) => {
+      if (!isDrawing || !canEdit) return;
+
+      const pos = getPointerPos(e);
+      const canvas = canvasRef.current;
+      if (!canvas) return;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) return;
+
+      ctx.lineTo(pos.x, pos.y);
+      ctx.stroke();
+
+      currentPointsRef.current.push(pos.x, pos.y);
+    },
+    [isDrawing, canEdit, getPointerPos],
+  );
 
   const handlePointerUp = useCallback(async () => {
     if (!isDrawing || !canEdit) return;
-    
+
     const canvas = canvasRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext("2d");
@@ -191,13 +200,13 @@ export function DrawingCanvas({ roomId, canEdit }: DrawingCanvasProps) {
         console.error("Failed to save stroke:", error);
       }
     }
-    
+
     currentPointsRef.current = [];
   }, [isDrawing, canEdit, roomId, currentColor, currentWidth]);
 
   const clearCanvas = async () => {
     if (!canEdit) return;
-    
+
     // Clear all strokes from Firestore
     for (const stroke of strokes) {
       try {
@@ -210,7 +219,7 @@ export function DrawingCanvas({ roomId, canEdit }: DrawingCanvasProps) {
 
   const addComment = async (x: number, y: number) => {
     if (!canEdit || !newComment.trim()) return;
-    
+
     try {
       const commentsRef = collection(db, "comments");
       await addDoc(commentsRef, {
@@ -229,7 +238,7 @@ export function DrawingCanvas({ roomId, canEdit }: DrawingCanvasProps) {
 
   const deleteComment = async (id: string) => {
     if (!canEdit) return;
-    
+
     try {
       await deleteDoc(doc(db, "comments", id));
     } catch (error) {
@@ -239,7 +248,7 @@ export function DrawingCanvas({ roomId, canEdit }: DrawingCanvasProps) {
 
   const handleCanvasClick = (e: React.MouseEvent<HTMLCanvasElement>) => {
     if (!canEdit) return;
-    
+
     const pos = getPointerPos(e);
     setActiveComment(`${pos.x},${pos.y}`);
   };
@@ -257,7 +266,7 @@ export function DrawingCanvas({ roomId, canEdit }: DrawingCanvasProps) {
                 onClick={() => setCurrentColor(color)}
                 className={cn(
                   "w-5 h-5 rounded-full border border-border",
-                  currentColor === color && "ring-1 ring-accent"
+                  currentColor === color && "ring-1 ring-accent",
                 )}
                 style={{ backgroundColor: color }}
                 aria-label={`Color ${color}`}
@@ -270,7 +279,7 @@ export function DrawingCanvas({ roomId, canEdit }: DrawingCanvasProps) {
               onClick={() => setTool("pen")}
               className={cn(
                 "border border-border px-2 py-0.5 rounded hover:bg-muted",
-                tool === "pen" && "border-accent/50 bg-accent/10 text-accent"
+                tool === "pen" && "border-accent/50 bg-accent/10 text-accent",
               )}
             >
               pen
@@ -280,7 +289,7 @@ export function DrawingCanvas({ roomId, canEdit }: DrawingCanvasProps) {
               onClick={() => setTool("eraser")}
               className={cn(
                 "border border-border px-2 py-0.5 rounded hover:bg-muted",
-                tool === "eraser" && "border-accent/50 bg-accent/10 text-accent"
+                tool === "eraser" && "border-accent/50 bg-accent/10 text-accent",
               )}
             >
               rubber
@@ -293,7 +302,7 @@ export function DrawingCanvas({ roomId, canEdit }: DrawingCanvasProps) {
                 onClick={() => setCurrentWidth(width)}
                 className={cn(
                   "w-6 h-6 rounded border border-border flex items-center justify-center text-[10px]",
-                  currentWidth === width && "bg-muted text-foreground"
+                  currentWidth === width && "bg-muted text-foreground",
                 )}
               >
                 {width}
@@ -304,7 +313,7 @@ export function DrawingCanvas({ roomId, canEdit }: DrawingCanvasProps) {
             onClick={() => setShowComments(!showComments)}
             className={cn(
               "border border-border px-2 py-0.5 hover:bg-muted",
-              !showComments && "text-muted-foreground"
+              !showComments && "text-muted-foreground",
             )}
           >
             {showComments ? "hide" : "show"} comments
@@ -338,29 +347,30 @@ export function DrawingCanvas({ roomId, canEdit }: DrawingCanvasProps) {
         />
 
         {/* Comments overlay */}
-        {showComments && comments.map((comment) => (
-          <div
-            key={comment.id}
-            className="absolute bg-muted border border-border rounded px-2 py-1 text-xs max-w-[150px] cursor-pointer"
-            style={{ left: comment.x, top: comment.y }}
-            onClick={(e) => {
-              e.stopPropagation();
-              if (canEdit) {
-                deleteComment(comment.id);
-              }
-            }}
-          >
-            {comment.text}
-          </div>
-        ))}
+        {showComments &&
+          comments.map((comment) => (
+            <div
+              key={comment.id}
+              className="absolute bg-muted border border-border rounded px-2 py-1 text-xs max-w-[150px] cursor-pointer"
+              style={{ left: comment.x, top: comment.y }}
+              onClick={(e) => {
+                e.stopPropagation();
+                if (canEdit) {
+                  deleteComment(comment.id);
+                }
+              }}
+            >
+              {comment.text}
+            </div>
+          ))}
 
         {/* Comment input */}
         {activeComment && (
           <div
             className="absolute bg-background border border-border rounded p-2 shadow-lg"
-            style={{ 
-              left: parseInt(activeComment.split(",")[0]) + 10, 
-              top: parseInt(activeComment.split(",")[1]) + 10 
+            style={{
+              left: parseInt(activeComment.split(",")[0]) + 10,
+              top: parseInt(activeComment.split(",")[1]) + 10,
             }}
           >
             <input
