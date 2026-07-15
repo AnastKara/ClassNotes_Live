@@ -3,6 +3,7 @@ dist
 .env
 .env.local
 *.local
+backend/service-account.json
 
 # Firebase
 .firebase
