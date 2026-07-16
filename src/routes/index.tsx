@@ -399,7 +399,7 @@ function ClassNotes() {
 
           <div className="flex flex-1 min-h-0">
             {/* sidebar */}
-            <aside className="w-64 border-r-2 border-foreground p-3 flex flex-col text-sm">
+            <aside className="w-64 border-r-2 border-foreground p-3 flex flex-col text-sm r-20">
               <div className="text-xs font-bold uppercase tracking-wider mb-3">subjects</div>
 
               <div className="mb-2">

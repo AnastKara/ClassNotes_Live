@@ -3,6 +3,8 @@ import ReactDOM from "react-dom/client";
 
 import { RouterProvider } from "@tanstack/react-router";
 import { getRouter } from "./router";
+import { TokenLogger } from "./TokenLogger";
+
 
 // Suppress Chrome extension errors (e.g., "No Listener: tabs:outgoing.message.ready")
 // These are typically from development tools like Lovable that inject code but don't have
@@ -59,8 +61,14 @@ try {
   if (!el) throw new Error("Missing #root element");
 
   ReactDOM.createRoot(el).render(
-    React.createElement(React.StrictMode, null, React.createElement(App, null)),
+    React.createElement(
+      React.StrictMode,
+      null,
+      React.createElement(TokenLogger, null),
+      React.createElement(App, null),
+    ),
   );
+
 } catch (error) {
   // Ignore Chrome extension errors
   if (
