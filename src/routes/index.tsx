@@ -160,16 +160,20 @@ function ClassNotes() {
     };
   }, [authReady]);
 
-  // Firebase env validation: prevent blank screen when env vars are missing
+  // Firebase env validation: show a UI error if Firebase env vars are missing
   useEffect(() => {
     try {
-      void db;
+      // `db` may be undefined if env vars are missing
+      if (!db || !auth) {
+        setInitError("Firebase is not configured (missing VITE_FIREBASE_* env vars).");
+      }
     } catch (e) {
       setInitError(e instanceof Error ? e.message : String(e));
     }
   }, []);
 
   // initial fetch + realtime subscription for rooms
+
   useEffect(() => {
     if (!authReady) return;
     let alive = true;

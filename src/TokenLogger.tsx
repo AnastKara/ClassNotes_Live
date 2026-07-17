@@ -1,10 +1,9 @@
 import React, { useEffect } from "react";
-import { getAuth, onAuthStateChanged } from "firebase/auth";
+import { onAuthStateChanged } from "firebase/auth";
+import { auth } from "./integrations/firebase";
 
 export function TokenLogger() {
   useEffect(() => {
-    const auth = getAuth();
-
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       if (!user) return;
 

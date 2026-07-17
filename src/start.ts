@@ -1,11 +1,9 @@
+import "./process-polyfill";
+
 import React from "react";
 import ReactDOM from "react-dom/client";
 
-import { RouterProvider } from "@tanstack/react-router";
-import { getRouter } from "./router";
-import { TokenLogger } from "./TokenLogger";
-
-
+import { App } from "./App";
 // Suppress Chrome extension errors (e.g., "No Listener: tabs:outgoing.message.ready")
 // These are typically from development tools like Lovable that inject code but don't have
 // proper background script listeners configured.
@@ -38,11 +36,6 @@ if (typeof window !== "undefined") {
   });
 }
 
-function App() {
-  const router = getRouter();
-  return React.createElement(RouterProvider, { router });
-}
-
 // Initialize theme before React paints.
 // Note: top-level import() must run before render; we call it synchronously via dynamic import + await.
 (async () => {
@@ -55,20 +48,13 @@ function App() {
 })();
 
 // Wrap the entire app in a try-catch to handle any errors
-
 try {
   const el = document.getElementById("root");
   if (!el) throw new Error("Missing #root element");
 
   ReactDOM.createRoot(el).render(
-    React.createElement(
-      React.StrictMode,
-      null,
-      React.createElement(TokenLogger, null),
-      React.createElement(App, null),
-    ),
+    React.createElement(React.StrictMode, null, React.createElement(App, null)),
   );
-
 } catch (error) {
   // Ignore Chrome extension errors
   if (

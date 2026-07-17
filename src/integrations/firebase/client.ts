@@ -23,25 +23,38 @@ const requiredEnvVars = [
 ];
 
 const missing = requiredEnvVars.filter((v) => !import.meta.env[v]);
+let missingMessage: string | null = null;
 if (missing.length > 0) {
-  const message = `Missing Firebase environment variable(s): ${missing.join(", ")}.`;
-  console.error(`[Firebase] ${message}`);
-  throw new Error(message);
+  missingMessage = `Missing Firebase environment variable(s): ${missing.join(", ")}.`;
+  console.error(`[Firebase] ${missingMessage}`);
 }
 
-// Initialize Firebase app (singleton)
+// Initialize Firebase app (singleton) - but do not hard-throw during module import.
+// This prevents a blank screen; the UI can show an error after it mounts.
 let firebaseApp;
 try {
-  firebaseApp = initializeApp(firebaseConfig);
+  if (missingMessage) {
+    // Intentionally skip initialization.
+    firebaseApp = undefined as any;
+  } else {
+    firebaseApp = initializeApp(firebaseConfig);
+  }
 } catch (e) {
   // App already initialized
-  firebaseApp = getApps()[0];
+  if (missingMessage) {
+    firebaseApp = undefined as any;
+  } else {
+    firebaseApp = getApps()[0];
+  }
 }
 
-// Export Firestore and Auth instances
-export const db = getFirestore(firebaseApp);
-export const auth = getAuth(firebaseApp);
-export const storage = getStorage(firebaseApp);
+export const firebaseEnvError = missingMessage;
+
+// If firebaseEnvError is set, these will be undefined.
+// Use `firebaseEnvError` to show an error UI instead of crashing.
+export const db = missingMessage ? (undefined as any) : getFirestore(firebaseApp);
+export const auth = missingMessage ? (undefined as any) : getAuth(firebaseApp);
+export const storage = missingMessage ? (undefined as any) : getStorage(firebaseApp);
 
 // Export for use in other modules
 export { firebaseApp };
