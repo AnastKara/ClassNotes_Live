@@ -1,5 +1,5 @@
 # ClassNotes Live
-
+<img width="1024" height="559" alt="image" src="https://github.com/user-attachments/assets/7a582763-9bf8-4cb9-8551-b6aff38e6f98" />
 A real-time collaborative classroom platform built for teachers and students. ClassNotes Live combines shared notes, interactive learning tools, and role-based controls into one seamless web app.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
@@ -195,15 +195,23 @@ npm run lint       # Run ESLint
 - `flashcards` - Flashcard documents linked to rooms
 - `users` - User profiles with role information
 
+## 🎯 Project Goals
+
+ClassNotes Live aims to be a lightweight, fast, and accessible classroom collaboration tool that supports:
+- **Live teaching** - Real-time note sharing during lectures
+- **Group study** - Collaborative learning environments
+- **Visual learning** - Drawing and diagramming capabilities
+- **Quick assessments** - Built-in quiz system for instant feedback
+- **Organized note-taking** - Subject-based room organization
+
 ## 🏁 Roadmap
 
 Planned future upgrades:
-- [ ] Offline mode
-- [ ] CRDT-based syncing
-- [ ] Document history
-- [ ] Teacher dashboards
-- [ ] Multi-room management
-- [ ] End-to-end encryption
+- [ ] Offline mode with local storage sync
+- [ ] CRDT-based syncing for conflict-free collaboration
+- [ ] Document history and version control
+- [ ] Teacher dashboards for analytics
+- [ ] Multi-room management interface
 
 ## 🤝 Contributing
 
