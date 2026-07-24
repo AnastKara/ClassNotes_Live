@@ -6,7 +6,7 @@ A real-time collaborative classroom platform built for teachers and students. Cl
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.8-blue?logo=typescript)](https://www.typescriptlang.org/)
 [![React](https://img.shields.io/badge/React-19-61DAFB?logo=react)](https://react.dev/)
 
-## ✨ Features
+##  Features
 
 ### 🎨 Collaborative Canvas
 - Multiple brush sizes and colors
@@ -208,6 +208,7 @@ ClassNotes Live aims to be a lightweight, fast, and accessible classroom collabo
 
 Planned future upgrades:
 - [ ] Offline mode with local storage sync
+- [ ] Real time rooms
 - [ ] CRDT-based syncing for conflict-free collaboration
 - [ ] Document history and version control
 - [ ] Teacher dashboards for analytics
@@ -235,4 +236,4 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ---
 
-Built with ❤️ using TanStack Start, Fastify, and Firebase.
+Built with TanStack Start, Fastify, and Firebase.
