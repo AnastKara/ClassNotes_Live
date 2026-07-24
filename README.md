@@ -8,11 +8,11 @@ A real-time collaborative classroom platform built for teachers and students. Cl
 
 ##  Features
 
-### 🎨 Collaborative Canvas |
-- Multiple brush sizes and colors |
-- Real-time drawing with other users |
-- Perfect for diagrams, math problems, quick sketches, and visual explanations |
-- Works inside each room so students and teachers collaborate live |
+### 🎨 Collaborative Canvas 
+- Multiple brush sizes and colors 
+- Real-time drawing with other users 
+- Perfect for diagrams, math problems, quick sketches, and visual explanations 
+- Works inside each room so students and teachers collaborate live 
 
 ### 📝 Real-Time Notes
 - Shared text editor for each room
