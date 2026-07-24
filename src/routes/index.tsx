@@ -937,13 +937,13 @@ function AddSubjectInline({
 
   return (
     <div className="w-full">
-      <div className="flex gap-2">
+      <div className="flex flex-col gap-2">
         <input
           ref={inputRef}
           value={value}
           onChange={(e) => setValue(e.target.value)}
           placeholder="Subject id (e.g., biology)"
-          className="flex-1 bg-background border-2 border-foreground px-2 py-1 outline-none"
+          className="w-full bg-background border-2 border-foreground px-2 py-1 outline-none"
           aria-label="New subject id"
           onKeyDown={(e) => {
             if (e.key === "Enter") add();
