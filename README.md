@@ -1,6 +1,5 @@
 # ClassNotes Live
-└── assets/
-    └── Gemini_Generated_Image_3jcl9b3jcl9b3jcl
+<img width="1024" height="559" alt="image" src="https://github.com/user-attachments/assets/7a582763-9bf8-4cb9-8551-b6aff38e6f98" />
 A real-time collaborative classroom platform built for teachers and students. ClassNotes Live combines shared notes, interactive learning tools, and role-based controls into one seamless web app.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
