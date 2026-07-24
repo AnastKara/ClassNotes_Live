@@ -39,7 +39,8 @@ export default defineConfig({
   define: {
     // Provide empty polyfills for Node.js built-ins
     global: "globalThis",
-    "process.env": "process.env ?? {}",
+    process: "({ env: {} })",
+    "process.env": "({})",
   },
   resolve: {
     alias: {
