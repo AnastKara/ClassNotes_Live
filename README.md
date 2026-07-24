@@ -8,7 +8,7 @@ A real-time collaborative classroom platform built for teachers and students. Cl
 
 ##  Features
 
-### 🎨 Collaborative Canvas
+### 🎨 Collaborative Canvas <img src="C:\Users\user\Pictures\Screenshots\Στιγμιότυπο οθόνης 2026-07-24 144004" alt="description" width="200" />
 - Multiple brush sizes and colors
 - Real-time drawing with other users
 - Perfect for diagrams, math problems, quick sketches, and visual explanations
