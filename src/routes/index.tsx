@@ -764,11 +764,14 @@ function ClassNotes() {
                         >
                           <div
                             className="text-xs font-bold uppercase tracking-wider"
-                            style={{ color: cardTextColor }}
+                            style={{ color: "oklch(0.15 0 0)" }}
                           >
                             {flipped ? "Answer" : "Question"}
                           </div>
-                          <div className="text-lg leading-snug whitespace-pre-wrap">
+                          <div
+                            className="text-lg leading-snug whitespace-pre-wrap"
+                            style={{ color: "oklch(0.15 0 0)" }}
+                          >
                             {flipped ? currentCard.back : currentCard.front}
                           </div>
                           <div className="text-xs text-right">
@@ -952,10 +955,10 @@ function AddSubjectInline({
         <button
           type="button"
           onClick={add}
-          className="border-2 border-foreground px-3 py-1 hover:bg-foreground hover:text-background font-bold shadow-[2px_2px_0px_0px_var(--foreground)]"
+          className="border-2 border-foreground bg-accent text-accent-foreground px-3 py-1 hover:opacity-90 font-bold shadow-[2px_2px_0px_0px_var(--foreground)]"
           aria-label="Add subject room"
         >
-          + Add
+          Add
         </button>
       </div>
 

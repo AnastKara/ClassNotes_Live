@@ -21,10 +21,10 @@ A real-time collaborative classroom platform built for teachers and students. Cl
 - Great for lectures, guided exercises, and controlled writing sessions
 
 ### 🧠 Quizzes & Flashcards
+<img src="https://via.placeholder.com/600x300/ffffff/000000?text=Quizzes+%26+Flashcards+Screenshot" alt="Quizzes and Flashcards" width="600" />
 - Built-in quiz system for quick assessments
 - Flashcards for memorization and study
 - Students can practice directly inside the app
-- Teachers can create and manage learning materials
 
 ### 🌗 Dark & Light Theme
 - Full theme toggle
